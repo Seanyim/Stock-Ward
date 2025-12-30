@@ -20,7 +20,7 @@
 - new add config.py to accept new added financial data
 - update ttm period calculation 
 - update charts and yoy data looks
-
+- upload local files to github repository
 
 ### questionable
 - DCF 
