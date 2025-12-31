@@ -48,12 +48,12 @@ def render_wacc_module(df):
     # --- 2. 宏观参数 (仍需手动，因随市场变动) ---
     with st.expander("🌍 宏观与市场风险参数 (点击修改)", expanded=True):
         col1, col2 = st.columns(2)
-        rf = col1.number_input("无风险利率 Rf (%)", value=4.0, step=0.1, key=f"{prefix}_rf") / 100
-        beta = col2.number_input("Beta 系数", value=1.1, step=0.05, key=f"{prefix}_beta")
+        rf = col1.number_input("无风险利率 Rf (%) - 10Y / 20Y / 30Y 美国国债收益率 同币种长期国债", value=4.0, step=0.1, key=f"{prefix}_rf") / 100
+        beta = col2.number_input("Beta 系数 - 5Y monthly 行业β → 去杠杆 → 目标D/E加杠杆", value=1.1, step=0.05, key=f"{prefix}_beta")
         
         col3, col4 = st.columns(2)
-        erp = col3.number_input("市场风险溢价 ERP (%)", value=5.5, step=0.1, key=f"{prefix}_erp") / 100
-        credit_spread = col4.number_input("信用利差 (Credit Spread) (%)", value=1.5, step=0.1, key=f"{prefix}_spread") / 100
+        erp = col3.number_input("市场风险溢价 ERP (%) - 股票相对于无风险资产的长期超额收益", value=5.5, step=0.1, key=f"{prefix}_erp") / 100
+        credit_spread = col4.number_input("信用利差 (Credit Spread) (%) - 公司债 or ICR映射", value=1.5, step=0.1, key=f"{prefix}_spread") / 100
 
     # --- 3. 资本结构与税率 (自动填充 + 可修正) ---
     st.markdown("### 🏗 资本结构 & 税率 (自动抓取)")
@@ -70,7 +70,7 @@ def render_wacc_module(df):
     ) / 100
     
     equity_weight = col_c2.number_input(
-        "权益占比 (E/V) (%)", 
+        "权益占比 (E/V) (%)",         
         value=float(auto_equity_ratio * 100), 
         format="%.2f",
         help=f"来源: {struct_source}",
@@ -79,6 +79,7 @@ def render_wacc_module(df):
 
     # --- 4. WACC 最终计算 ---
     st.markdown("### 🧮 WACC 计算公式")
+    st.latex(r"\frac{Equity}{Equity + Debt} \quad Equity = Market\ Cap \qquad \frac{Debt}{Equity + Debt} \quad Debt = Total\ Debt")
     st.latex(r"权益成本\quad Re = Rf + \beta \times ERP \qquad \qquad 债务成本\quad Rd = (Rf + Spread) \times (1 - Tax)")
     # 计算权益成本 re = Rf + Beta * ERP
     cost_of_equity = rf + (beta * erp)
