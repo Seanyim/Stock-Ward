@@ -29,14 +29,6 @@
         "records": [
             {
                 "Year": 2026,
-                "Period": "Q9",
-                "Revenue": 147.811,
-                "Profit": 77.107,
-                "EPS": 3.14,
-                "FCF": 61.772
-            },
-            {
-                "Year": 2026,
                 "Period": "H1",
                 "Revenue": 90.805,
                 "Profit": 45.197,
@@ -98,6 +90,19 @@
                 "Profit": 17.475,
                 "EPS": 0.7,
                 "FCF": 15.776
+            },
+            {
+                "Year": 2026,
+                "Period": "Q9",
+                "Revenue": 147.811,
+                "Profit": 77.107,
+                "EPS": 3.16,
+                "FCF": 61.772,
+                "Pre_Tax_Income": 91.052,
+                "Income_Tax": 13.945,
+                "Interest_Expense": 0.186,
+                "Total_Debt": 42.251,
+                "Market_Cap": 4400.0
             }
         ]
     }

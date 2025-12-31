@@ -1,6 +1,6 @@
 import pandas as pd
 import numpy as np
-from modules.config import METRIC_KEYS # [关键] 导入指标列表
+from modules.config import GROWTH_METRIC_KEYS # [修改点] 只导入需要计算增长的 Key
 # 常量定义
 PERIOD_MAP_SORT = {"Q1": 1, "H1": 2, "Q9": 3, "FY": 4}
 PERIOD_MAP_DISPLAY = {"Q1": "Q1", "H1": "Q2", "Q9": "Q3", "FY": "Q4"}
@@ -9,42 +9,47 @@ def process_financial_data(df):
     if df.empty:
         return df, df
 
-    # 1. 基础清洗与排序
     df = df.copy()
-    # 确保 Period 去除空格，防止匹配错误
-    df['Period'] = df['Period'].str.strip()
     df['Sort_Key'] = df['Period'].map(PERIOD_MAP_SORT)
-    
-    # 强制排序：先按年，再按周期
     df = df.sort_values(by=['Year', 'Sort_Key']).reset_index(drop=True)
     
     df_single = df.copy()
     df_single['Quarter_Name'] = df_single['Period'].map(PERIOD_MAP_DISPLAY)
 
-    target_metrics = METRIC_KEYS 
+    # [关键修改] 只遍历需要计算增长率的指标
+    # 那些 calc_growth=False 的指标（如 Tax, Debt）将不会生成 _Single, _YoY, _TTM 列
+    # 从而节省计算资源，也不会污染图表选项
+    target_metrics = GROWTH_METRIC_KEYS 
     valid_metrics = [m for m in target_metrics if m in df.columns]
 
     for metric in valid_metrics:
-        # A. 单季值拆分
+        # A. 单季值
         df_single = _calculate_single_quarter_value(df_single, metric)
-        
-        # B. 累计 YoY (Original Cumulative Data)
+        # B. 累计 YoY
         df = _calculate_yoy(df, metric, is_single=False)
-        
         # C. 单季 YoY
         df_single = _calculate_yoy(df_single, f"{metric}_Single", is_single=True)
-        
         # D. 单季 QoQ
         df_single = _calculate_qoq(df_single, f"{metric}_Single")
         
-        # E. TTM 计算 (滚动4季和)
+        # E. TTM 计算
         ttm_col = f"{metric}_TTM"
-        # 注意：rolling 依赖于索引顺序，前面已经 reset_index 且排序，所以这里计算是安全的
         df_single[ttm_col] = df_single[f"{metric}_Single"].rolling(window=4).sum()
         df_single = _calculate_yoy(df_single, ttm_col, is_single=True)
+    
+    # [新增] 对于不需要计算增长率的指标 (如 Total_Debt)，我们也需要把它们保留在 df_single 里
+    # 方便 WACC 模块调用 "Total_Debt_Single" (虽然对于存量数据 Single=Cumulative)
+    from modules.config import ALL_METRIC_KEYS
+    non_growth_metrics = [m for m in ALL_METRIC_KEYS if m not in GROWTH_METRIC_KEYS and m in df.columns]
+    
+    for metric in non_growth_metrics:
+        # 对于存量数据(债务/市值)，单季度数值 = 当期报告数值 (不需要 diff)
+        # 我们简单地把原值复制过去，统一命名格式方便调用
+        df_single[f"{metric}_Single"] = df_single[metric]
+        # TTM 对存量数据通常取平均或期末值，这里简化处理取期末值
+        df_single[f"{metric}_TTM"] = df_single[metric]
 
     return df, df_single
-
 # ==========================================
 #           内部通用核心函数 (封装)
 # ==========================================

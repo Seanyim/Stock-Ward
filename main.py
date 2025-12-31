@@ -12,7 +12,7 @@ from modules.wacc import render_wacc_module
 
 
 st.set_page_config(page_title="公司估值工具", layout="wide")
-st.title("📊 企业财务分析与估值软件 (Pro Ver 1.1)")
+st.title("📊 企业财务分析与估值软件 (Pro Ver 1.15)")
 
 # --- 侧边栏逻辑 ---
 st.sidebar.header("🏢 公司管理")
@@ -86,5 +86,5 @@ with tab1:
 with tab2:
     render_valuation_PE_tab(df, current_unit)
 with tab3:
-    wacc = render_wacc_module(df)
-    render_valuation_DCF_tab(df, wacc, current_unit)
+    wacc_value, rf_value = render_wacc_module(df)
+    render_valuation_DCF_tab(df, wacc_value, rf_value, current_unit)

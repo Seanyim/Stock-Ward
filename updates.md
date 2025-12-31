@@ -31,3 +31,5 @@
 ## 2025/12/31
 ### updates
 - review and update DCF & WACC 
+- update config financial data list
+- update logic if financial data needs record

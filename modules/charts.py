@@ -2,7 +2,7 @@ import streamlit as st
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 from modules.calculator import process_financial_data
-from modules.config import METRIC_KEYS
+from modules.config import GROWTH_METRIC_KEYS
 
 def render_charts_tab(df, unit_label):
     st.subheader("📊 财务趋势交互分析")
@@ -17,8 +17,9 @@ def render_charts_tab(df, unit_label):
     col_ctrl1, col_ctrl2 = st.columns([1, 1])
     
     with col_ctrl1:
-        # 指标选择
-        available_metrics = METRIC_KEYS
+        # [修改点] 这里的下拉菜单将只显示 Revenue, Profit, EPS, FCF
+        # 不会显示 Pre_Tax_Income, Tax 等不需要绘图的指标
+        available_metrics = GROWTH_METRIC_KEYS
         valid_metrics = [m for m in available_metrics if m in df.columns]
         
         selected_metric = st.selectbox(
@@ -94,7 +95,7 @@ def _create_metric_chart(df_cum, df_single, metric, view_mode, growth_type, unit
             title_text = f"{metric} - 单季度趋势 (关注 QoQ 短期动能)"
             
         bar_name = f"单季{metric} ({unit_label})"
-        hover_template_bar = f"<b>%{{x}}</b><br>单季数值: %{{y:.2f}} {unit_label}<extra></extra>"
+        hover_template_bar = f"<b>%{{x}}</b><br>单季数值: %{{y:.3f}} {unit_label}<extra></extra>"
 
     elif view_mode == "TTM (长期趋势)":
         # === 模式2: TTM ===
@@ -112,7 +113,7 @@ def _create_metric_chart(df_cum, df_single, metric, view_mode, growth_type, unit
         title_text = f"{metric} - TTM 滚动年化趋势 (熨平季节性)"
         
         # 增加提示：解释为何有些点没有增长率
-        hover_template_bar = f"<b>%{{x}}</b><br>TTM数值: %{{y:.2f}} {unit_label}<br><i>(过去4个单季之和)</i><extra></extra>"
+        hover_template_bar = f"<b>%{{x}}</b><br>TTM数值: %{{y:.3f}} {unit_label}<br><i>(过去4个单季之和)</i><extra></extra>"
         
     else: 
         # === 模式3: 累计 ===
@@ -125,7 +126,7 @@ def _create_metric_chart(df_cum, df_single, metric, view_mode, growth_type, unit
         bar_name = f"累计{metric} ({unit_label})"
         line_name = "累计同比增长"
         title_text = f"{metric} - 累计/年度完成进度"
-        hover_template_bar = f"<b>%{{x}}</b><br>累计数值: %{{y:.2f}} {unit_label}<extra></extra>"
+        hover_template_bar = f"<b>%{{x}}</b><br>累计数值: %{{y:.3f}} {unit_label}<extra></extra>"
 
     # --- B. 绘图逻辑 (Plotly) ---
     fig = make_subplots(specs=[[{"secondary_y": True}]])
@@ -197,9 +198,9 @@ def _show_data_table(df_cum, df_single, metric, view_mode):
         if yoy in df_single.columns: cols.append(yoy)
         
         st.dataframe(df_single_view[cols].style.format({
-            f'{metric}_Single': "{:.2f}", 
-            qoq: "{:.2%}",
-            yoy: "{:.2%}"
+            f'{metric}_Single': "{:.3f}", 
+            qoq: "{:.3%}",
+            yoy: "{:.3%}"
         }, na_rep="-"))
         
     elif view_mode == "TTM (长期趋势)":
@@ -209,9 +210,9 @@ def _show_data_table(df_cum, df_single, metric, view_mode):
              cols.insert(2, f'{metric}_Single')
              
         st.dataframe(df_single_view[cols].style.format({
-            f'{metric}_Single': "{:.2f}",
-            f'{metric}_TTM': "{:.2f}", 
-            f'{metric}_TTM_YoY': "{:.2%}"
+            f'{metric}_Single': "{:.3f}",
+            f'{metric}_TTM': "{:.3f}", 
+            f'{metric}_TTM_YoY': "{:.3%}"
         }, na_rep="-"))
         
     else:
@@ -219,6 +220,6 @@ def _show_data_table(df_cum, df_single, metric, view_mode):
         col_yoy = f'{metric}_YoY'
         cols = ['Year', 'Period', metric, col_yoy]
         st.dataframe(df_cum_view[cols].style.format({
-            metric: "{:.2f}", 
-            col_yoy: "{:.2%}"
+            metric: "{:.3f}", 
+            col_yoy: "{:.3%}"
         }, na_rep="-"))
