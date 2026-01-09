@@ -1,14 +1,15 @@
-## Create venv
-python -m venv .venv
-
-## Activate venv
-
 ### macOS / Linux
 source .venv/bin/activate
 
 ### Windows (PowerShell)
-.\.venv\Scripts\Activate.ps1
+conda create -n my_project_env python=3.10
+conda activate my_project_env
 
+
+### library requirment
+pip install pipreqs
+pipreqs . --encoding=utf8 --force
+pip install -r requirements.txt
 
 ### workflow
 #### git
