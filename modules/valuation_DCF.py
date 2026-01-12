@@ -3,130 +3,118 @@ import pandas as pd
 import numpy as np
 from modules.calculator import process_financial_data
 
-def render_valuation_DCF_tab(df, wacc, rf, unit_label):
-    prefix = "dcf"
-    st.subheader("🚀 自动 DCF 估值模型 (动态联动版)")
+def render_valuation_DCF_tab(df, wacc, rf_rate, unit_label):
+    st.subheader("💎 现金流折现模型 (DCF)")
     
     if df.empty:
-        st.warning("暂无财务数据，请先录入。")
+        st.warning("暂无数据")
         return
 
-    # 1. 获取 TTM 数据
+    # 1. 准备数据
     df_cum, df_single = process_financial_data(df)
-    df_single = df_single.sort_values(by=['Year', 'Sort_Key'])
+    # [修复] 小写 year
+    df_fy = df_cum[df_cum['period'] == 'FY'].sort_values(by='year')
     
-    if len(df_single) < 4:
-        st.error("数据不足 4 个季度，无法生成 TTM 数据，DCF 模型暂停使用。")
+    if df_fy.empty:
+        st.error("DCF 需要年度数据 (FY)")
         return
+        
+    last_record = df_fy.iloc[-1]
     
-    latest_data = df_single.iloc[-1]
-
-    # --- 自动参数 1: 基准 FCF (锁定) ---
-    # 严格使用 TTM FCF，如果未录入 FCF 则降级使用 TTM Profit
-    if pd.notna(latest_data.get('FCF_TTM')) and latest_data['FCF_TTM'] != 0:
-        base_fcf = latest_data['FCF_TTM']
-        fcf_source = "TTM 自由现金流 (滚动4季)"
-    else:
-        base_fcf = latest_data.get('Profit_TTM', 0)
-        fcf_source = "TTM 净利润 (替代值，未检测到FCF)"
-
-    # --- 自动参数 2: 历史增长率 (CAGR) ---
-    # 计算逻辑：(最新TTM / N年前TTM)^(1/N) - 1
-    st.latex(r"CAGR = \left(\frac{FCF_{TTM\ 最新}}{FCF_{TTM\ N年前}}\right)^{\frac{1}{N}} - 1")
-    # 尝试寻找 3 年前的 TTM 数据来计算 CAGR
-    cagr_label = "默认 (10%)"
-    auto_growth_rate = 0.10
+    # 2. 自动提取参数
+    # [修复] 优先使用 Free_Cash_Flow，如果没有则计算
+    base_fcf = last_record.get('Free_Cash_Flow', 0)
+    if base_fcf == 0:
+        base_fcf = last_record.get('Operating_Cash_Flow', 0) - abs(last_record.get('Capex', 0))
+        
+    # 获取增长率 (使用 calculator 算好的 YoY)
+    # 如果 calculator 没算 FCF YoY，则尝试算 Revenue YoY 作为替代参考
+    g_rate_hist = last_record.get('Free_Cash_Flow_YoY', 0.05)
+    if pd.isna(g_rate_hist): g_rate_hist = 0.05
     
-    if len(df_single) >= 12: # 至少3年数据
-        try:
-            past_data = df_single.iloc[-9] # 2年前 (8个季度前)
-            past_fcf = past_data.get('FCF_TTM', past_data.get('Profit_TTM', 1))
-            if past_fcf > 0 and base_fcf > 0:
-                cagr = (base_fcf / past_fcf) ** (1/2) - 1
-                auto_growth_rate = cagr
-                cagr_label = "2年复合增速 (CAGR)"
-        except:
-            pass
-    elif pd.notna(latest_data.get('FCF_TTM_YoY')):
-        auto_growth_rate = latest_data['FCF_TTM_YoY']
-        cagr_label = "最新 TTM 同比增速"
+    # 3. 参数设置
+    c1, c2, c3 = st.columns(3)
+    with c1:
+        initial_fcf = st.number_input("基准 FCF (初始值)", value=float(base_fcf))
+    with c2:
+        growth_stage1 = st.number_input("第一阶段增长率 (%)", value=float(g_rate_hist*100), step=0.1) / 100
+    with c3:
+        terminal_growth = st.number_input("永续增长率 (%)", value=2.0, step=0.1, max_value=rf_rate*100) / 100
 
-    # --- 界面交互 ---
-    
-    col_p1, col_p2, col_p3 = st.columns(3)
-    
-    # 1. 基准 FCF (只读)
-    col_p1.metric(
-        label="基准现金流 (Base FCF)",
-        value=f"{base_fcf:.2f} {unit_label}",
-        help=f"数据来源: {fcf_source} (不可手动修改，请更新财报)"
-    )
+    c4, c5 = st.columns(2)
+    with c4:
+        years_stage1 = st.slider("第一阶段时长 (年)", 3, 10, 5)
+    with c5:
+        # 显示传入的 WACC
+        st.metric("WACC (折现率)", f"{wacc*100:.1f}%")
 
-    # 2. 预期增长率 (自动填充但可修)
-    growth_rate_input = col_p2.number_input(
-        "未来 5 年增长率 (%)",
-        value=float(auto_growth_rate * 100),
-        format="%.2f",
-        help=f"系统建议: {cagr_label} ({auto_growth_rate:.1%})",
-        key=f"{prefix}_growth"
-    ) / 100
-
-    # 3. 永续增长率 (自动建议)
-    # 理论上限通常是无风险利率或 GDP 增速
-    terminal_g_input = col_p3.number_input(
-        "永续增长率 (%)",
-        value=2.5, # 默认 2.5%
-        max_value=float(rf * 100), # 不超过无风险利率
-        step=0.1,
-        format="%.2f",
-        help=f"通常不应超过无风险利率 ({rf:.1%})",
-        key=f"{prefix}_term_g"
-    ) / 100
-
-    # --- 计算引擎 ---
-    if wacc <= terminal_g_input:
-        st.error(f"❌ 错误：WACC ({wacc:.2%}) 必须大于永续增长率 ({terminal_g_input:.2%})，否则模型发散。")
-        return
-
-    # 预测期
-    cash_flows = []
-    years_label = []
-    
-    # 动态显示年份
-    current_year = latest_data['Year']
-    
-    for i in range(1, 6):
-        fcf_future = base_fcf * ((1 + growth_rate_input) ** i)
-        discounted_fcf = fcf_future / ((1 + wacc) ** i)
-        cash_flows.append(discounted_fcf)
-        years_label.append(f"{int(current_year)+i}E")
-
-    sum_pv_growth = sum(cash_flows)
-
-    # 终值
-    fcf_year_5 = base_fcf * ((1 + growth_rate_input) ** 5)
-    terminal_value = fcf_year_5 * (1 + terminal_g_input) / (wacc - terminal_g_input)
-    pv_terminal = terminal_value / ((1 + wacc) ** 5)
-
-    total_value = sum_pv_growth + pv_terminal
-
-    # --- 结果可视化 ---
+    # 4. 计算过程
     st.markdown("---")
+    st.markdown("#### 📅 现金流预测")
+    
+    future_fcfs = []
+    discount_factors = []
+    pv_fcfs = []
+    
+    cols = st.columns(years_stage1)
+    
+    current_fcf = initial_fcf
+    total_pv_stage1 = 0
+    
+    for i in range(1, years_stage1 + 1):
+        current_fcf *= (1 + growth_stage1)
+        disc = (1 + wacc) ** i
+        pv = current_fcf / disc
+        
+        future_fcfs.append(current_fcf)
+        discount_factors.append(disc)
+        pv_fcfs.append(pv)
+        total_pv_stage1 += pv
+        
+        # 简单显示
+        with cols[i-1]:
+            st.metric(f"Y{i}", f"{current_fcf/1e9:.2f}B", f"PV: {pv/1e9:.2f}B")
+
+    # 5. 终值计算
+    terminal_val = future_fcfs[-1] * (1 + terminal_growth) / (wacc - terminal_growth)
+    pv_terminal = terminal_val / ((1 + wacc) ** years_stage1)
+    
+    total_value = total_pv_stage1 + pv_terminal
+    
+    # 6. 结果展示
+    # 尝试获取股本数来计算每股价值
+    # [修复] 假设 stock_price 和 market_cap 存在
+    price = last_record.get('stock_price', 0)
+    mcap = last_record.get('market_cap', 0)
+    shares = 0
+    if price > 0 and mcap > 0:
+        shares = mcap / price
+    elif price > 0 and last_record.get('EPS', 0) > 0:
+        # 估算: Market Cap 也可以通过 Profit * PE 估算，或者直接从 raw data 获取 shares
+        # 这里如果没有 shares 数据，就只显示总市值
+        pass
+        
+    st.markdown("#### 💰 估值结果")
     res_c1, res_c2, res_c3 = st.columns(3)
     
-    res_c1.metric("预测期现值 (5年)", f"{sum_pv_growth:.2f} {unit_label}")
-    res_c2.metric("终值折现 (PV TV)", f"{pv_terminal:.2f} {unit_label}")
-    res_c3.metric(
-        "🚀 DCF 估值 (内在价值)", 
-        f"{total_value:.2f} {unit_label}", 
-        delta=f"WACC: {wacc:.1%} | g: {growth_rate_input:.1%}"
-    )
+    with res_c1:
+        st.metric("第一阶段现值", f"{total_pv_stage1/1e9:.2f} B")
+    with res_c2:
+        st.metric("终值现值", f"{pv_terminal/1e9:.2f} B")
+    with res_c3:
+        st.metric("企业总价值 (EV)", f"{total_value/1e9:.2f} B", delta_color="normal")
+        
+    # 如果能算出每股价值
+    net_debt = last_record.get('Total_Debt', 0) - last_record.get('Cash', 0)
+    equity_value = total_value - net_debt
     
-    # 增加一个小表格显示未来流
-    with st.expander("查看现金流预测详情"):
-        future_df = pd.DataFrame({
-            "年份": years_label,
-            "折现因子": [f"1/{(1+wacc)**i:.2f}" for i in range(1, 6)],
-            "折现后现值": [f"{cf:.2f}" for cf in cash_flows]
-        })
-        st.table(future_df)
+    st.caption(f"减去净债务: {net_debt/1e9:.2f} B -> 股权价值: {equity_value/1e9:.2f} B")
+    
+    if shares > 0:
+        fair_price = equity_value / shares
+        upside = (fair_price - price) / price
+        st.success(f"### 合理股价: ${fair_price:.2f} (Upside: {upside:.1%})")
+    elif price > 0:
+        # 粗略反推
+        implied_upside = (equity_value - mcap) / mcap if mcap > 0 else 0
+        st.info(f"当前市值: {mcap/1e9:.2f} B | 理论股权价值: {equity_value/1e9:.2f} B")

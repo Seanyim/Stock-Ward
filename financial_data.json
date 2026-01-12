@@ -105,5 +105,116 @@
                 "Market_Cap": 4400.0
             }
         ]
+    },
+    "AAPL": {
+        "meta": {
+            "unit": "Billion"
+        },
+        "records": [
+            {
+                "Year": 2025,
+                "Period": "FY",
+                "Close_Price": 254.38340759277344,
+                "Total_Debt": 98.657,
+                "Revenue": 416.161,
+                "Profit": 112.01,
+                "EPS": 7.49e-09,
+                "FCF": 98.767,
+                "Interest_Expense": 0.0,
+                "Pre_Tax_Income": 132.729,
+                "Income_Tax": 20.719
+            },
+            {
+                "Year": 2025,
+                "Period": "Q9",
+                "Close_Price": 254.38340759277344,
+                "Total_Debt": 98.186,
+                "Revenue": 291.861,
+                "Profit": 75.68,
+                "EPS": 5.07e-09,
+                "FCF": 71.772,
+                "Interest_Expense": 0.0,
+                "Pre_Tax_Income": 90.145,
+                "Income_Tax": 14.465
+            },
+            {
+                "Year": 2025,
+                "Period": "H1",
+                "Close_Price": 204.7389373779297,
+                "Total_Debt": 98.186,
+                "Revenue": 189.39499999999998,
+                "Profit": 48.214,
+                "EPS": 3.22e-09,
+                "FCF": 45.286,
+                "Interest_Expense": 0.0,
+                "Pre_Tax_Income": 57.340999999999994,
+                "Income_Tax": 9.127
+            },
+            {
+                "Year": 2025,
+                "Period": "Q1",
+                "Close_Price": 221.37301635742188,
+                "Total_Debt": 98.186,
+                "Revenue": 95.359,
+                "Profit": 24.78,
+                "EPS": 1.6499999999999999e-09,
+                "FCF": 20.881,
+                "Interest_Expense": 0.0,
+                "Pre_Tax_Income": 29.31,
+                "Income_Tax": 4.53
+            },
+            {
+                "Year": 2024,
+                "Period": "FY",
+                "Close_Price": 231.69602966308594,
+                "Total_Debt": 106.629,
+                "Revenue": 391.035,
+                "Profit": 93.736,
+                "EPS": 6.110000000000001e-09,
+                "FCF": 108.807,
+                "Interest_Expense": 0.0,
+                "Pre_Tax_Income": 123.485,
+                "Income_Tax": 29.749
+            },
+            {
+                "Year": 2023,
+                "Period": "FY",
+                "Close_Price": 169.3850555419922,
+                "Total_Debt": 111.088,
+                "Revenue": 383.285,
+                "Profit": 96.995,
+                "EPS": 6.16e-09,
+                "FCF": 99.584,
+                "Interest_Expense": 3.933,
+                "Pre_Tax_Income": 113.736,
+                "Income_Tax": 16.741
+            },
+            {
+                "Year": 2022,
+                "Period": "FY",
+                "Close_Price": 135.9206085205078,
+                "Total_Debt": 132.48,
+                "Revenue": 394.328,
+                "Profit": 99.803,
+                "EPS": 6.1500000000000005e-09,
+                "FCF": 111.443,
+                "Interest_Expense": 2.931,
+                "Pre_Tax_Income": 119.103,
+                "Income_Tax": 19.3
+            },
+            {
+                "Year": 2021,
+                "Period": "FY",
+                "Close_Price": 138.3906707763672,
+                "Total_Debt": 0.0,
+                "Revenue": 0.0,
+                "Profit": 0.0,
+                "EPS": 0.0,
+                "FCF": 0.0,
+                "Interest_Expense": 2.645,
+                "Pre_Tax_Income": 0.0,
+                "Income_Tax": 0.0
+            }
+        ]
     }
 }

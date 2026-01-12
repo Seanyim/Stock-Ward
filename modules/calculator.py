@@ -1,66 +1,70 @@
 import pandas as pd
 import numpy as np
-from modules.config import GROWTH_METRIC_KEYS, ALL_METRIC_KEYS
+from modules.config import METRIC_MAPPING
 
-PERIOD_MAP_SORT = {"Q1": 1, "H1": 2, "Q9": 3, "FY": 4}
-PERIOD_MAP_DISPLAY = {"Q1": "Q1", "H1": "Q2", "Q9": "Q3", "FY": "Q4"}
+PERIOD_MAP_SORT = {"Q1": 1, "Q2": 2, "Q3": 3, "Q4": 4, "H1": 2, "Q9": 3, "FY": 5}
 
 def process_financial_data(df):
-    if df.empty:
-        return df, df
+    if df.empty: return df, df
 
     df = df.copy()
-    df['Sort_Key'] = df['Period'].map(PERIOD_MAP_SORT)
-    df = df.sort_values(by=['Year', 'Sort_Key']).reset_index(drop=True)
+    df = df[df['period'].isin(PERIOD_MAP_SORT.keys())]
+    df['Sort_Key'] = df['period'].map(PERIOD_MAP_SORT)
+    df = df.sort_values(by=['year', 'Sort_Key']).reset_index(drop=True)
     
     df_single = df.copy()
-    df_single['Quarter_Name'] = df_single['Period'].map(PERIOD_MAP_DISPLAY)
-
-    # 1. 处理需要拆解单季度的增长指标 (Revenue, EPS, Profit...)
-    target_metrics = GROWTH_METRIC_KEYS 
-    valid_metrics = [m for m in target_metrics if m in df.columns]
+    
+    valid_metrics = [m['id'] for m in METRIC_MAPPING if m['id'] in df.columns]
 
     for metric in valid_metrics:
-        # A. 单季值拆解
-        df_single = _calculate_single_quarter_value(df_single, metric)
-        # B. 累计 YoY
-        df = _calculate_yoy(df, metric, is_single=False)
-        # C. 单季 YoY
-        df_single = _calculate_yoy(df_single, f"{metric}_Single", is_single=True)
-        # D. TTM 计算 (关键)
-        ttm_col = f"{metric}_TTM"
-        df_single[ttm_col] = df_single[f"{metric}_Single"].rolling(window=4).sum()
-        # E. TTM YoY (用于判断增长趋势的持续性 - Prompt V2 核心)
-        df_single = _calculate_yoy(df_single, ttm_col, is_single=True)
-    
-    # 2. 处理存量/非累计指标 (Close_Price, Market_Cap, Debt)
-    # 这些不需要 diff，单季度值 = 报告期值
-    non_growth_metrics = [m for m in ALL_METRIC_KEYS if m not in GROWTH_METRIC_KEYS and m in df.columns]
-    
-    for metric in non_growth_metrics:
-        # 直接复制
+        # 1. 单季值
         df_single[f"{metric}_Single"] = df_single[metric]
-        # TTM 对存量数据通常取"最新值"，而不是求和
-        df_single[f"{metric}_TTM"] = df_single[metric]
+        
+        # 2. TTM 计算
+        ttm_col = f"{metric}_TTM"
+        is_flow = metric not in ["Total_Assets", "Total_Liabilities", "Total_Equity", "Cash", "Total_Debt"]
+        mask_q = df_single['period'].isin(['Q1', 'Q2', 'Q3', 'Q4'])
+        
+        if is_flow:
+            df_single.loc[mask_q, ttm_col] = df_single.loc[mask_q, metric].rolling(window=4, min_periods=4).sum()
+        else:
+            df_single.loc[mask_q, ttm_col] = df_single.loc[mask_q, metric]
+
+        # 3. YoY 计算 (对 Single, TTM 和 原始df(年度) 都计算)
+        df = _calculate_yoy(df, metric) # 年度 YoY
+        df_single = _calculate_yoy(df_single, f"{metric}_Single") # 单季 YoY
+        if is_flow:
+            df_single = _calculate_yoy(df_single, ttm_col) # TTM YoY
+
+        # 4. QoQ 计算
+        df_single = _calculate_qoq(df_single, f"{metric}_Single")
 
     return df, df_single
 
-# ... (内部函数 _calculate_single_quarter_value, _calculate_yoy, _calculate_qoq 保持不变，见上文) ...
-def _calculate_single_quarter_value(df, metric_name):
-    target_col = f"{metric_name}_Single"
-    df[target_col] = df.groupby('Year')[metric_name].diff()
-    mask_q1 = df['Period'] == 'Q1'
-    df.loc[mask_q1, target_col] = df.loc[mask_q1, metric_name]
+def _calculate_yoy(df, col_name):
+    prev_df = df.copy()
+    prev_df['year'] = prev_df['year'] + 1
+    # 匹配键：year + period (确保 Q1 对 Q1, FY 对 FY)
+    if col_name not in df.columns: return df
+    
+    merged = pd.merge(df, prev_df[['year', 'period', col_name]], on=['year', 'period'], how='left', suffixes=('', '_Prev'))
+    curr = merged[col_name]
+    prev = merged[f'{col_name}_Prev']
+    df[f"{col_name}_YoY"] = (curr - prev) / prev.replace(0, np.nan).abs()
     return df
 
-def _calculate_yoy(df, col_name, is_single=False):
-    prev_year_df = df.copy()
-    prev_year_df['Year'] = prev_year_df['Year'] + 1
-    join_keys = ['Year', 'Quarter_Name'] if is_single else ['Year', 'Period']
-    prev_year_subset = prev_year_df[join_keys + [col_name]]
-    merged = pd.merge(df, prev_year_subset, on=join_keys, how='left', suffixes=('', '_PrevYear'))
-    prev_val = merged[f'{col_name}_PrevYear']
-    curr_val = merged[col_name]
-    growth_col = f"{col_name}_YoY"
-    df[growth_col] = (curr_val - prev_val) / prev_val.abs()
+def _calculate_qoq(df, col_name):
+    if col_name not in df.columns: return df
+    df_sorted = df.sort_values(by=['year', 'Sort_Key'])
+    mask = df_sorted['period'].isin(['Q1', 'Q2', 'Q3', 'Q4'])
+    subset = df_sorted.loc[mask].copy()
+    
+    subset[f'{col_name}_PrevQ'] = subset[col_name].shift(1)
+    # 只有当上一行确实是上个季度时才算有效 (简单处理: 均视为连续)
+    curr = subset[col_name]
+    prev = subset[f'{col_name}_PrevQ']
+    subset[f"{col_name}_QoQ"] = (curr - prev) / prev.replace(0, np.nan).abs()
+    
+    df[f"{col_name}_QoQ"] = np.nan
+    df.loc[subset.index, f"{col_name}_QoQ"] = subset[f"{col_name}_QoQ"]
     return df
