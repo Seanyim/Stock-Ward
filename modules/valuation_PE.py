@@ -61,16 +61,47 @@ def render_valuation_PE_tab(df_raw, unit_label):
     pe_80 = valid_pe['PE_TTM'].quantile(0.8)
     
     latest = valid_pe.iloc[-1]
-    current_pe = latest['PE_TTM']
+    current_pe_ttm = latest['PE_TTM']
+    current_price = latest['close']
+    current_eps_ttm = latest['EPS_TTM']
     
-    c1, c2, c3, c4 = st.columns(4)
-    c1.metric("当前 PE (TTM)", f"{current_pe:.2f}")
-    c2.metric("中位 PE", f"{pe_median:.2f}")
-    c3.metric("低估区 (P20)", f"{pe_20:.2f}")
-    c4.metric("高估区 (P80)", f"{pe_80:.2f}")
+    # --- 增加详细 PE 指标计算 ---
+    # 1. 静态 PE (Static PE) = Price / Last FY EPS
+    fy_data = df_raw[df_raw['period'] == 'FY']
+    if not fy_data.empty:
+        fy_data_sorted = fy_data.sort_values('year')
+        last_fy_record = fy_data_sorted.iloc[-1]
+        eps_static = last_fy_record.get('EPS', None) if isinstance(last_fy_record, pd.Series) else None
+    else:
+        eps_static = None
+    
+    pe_static = (current_price / eps_static) if eps_static and eps_static > 0 else None
+    
+    # 2. 动态 PE & PEG (需输入增长率)
+    st.markdown("#### 📐 详细估值指标")
+    g_col, _ = st.columns([1, 2])
+    growth_input = g_col.number_input("预期盈利增长率 (%) for PEG/Forward", value=15.0, min_value=0.1)
+    
+    # Forward EPS = EPS_TTM * (1 + g)
+    eps_forward = current_eps_ttm * (1 + growth_input/100)
+    pe_forward = current_price / eps_forward if eps_forward > 0 else 0
+    
+    # PEG = PE_TTM / Growth (Rate)
+    peg = current_pe_ttm / growth_input
+    
+    # Display Grid
+    m1, m2, m3, m4, m5 = st.columns(5)
+    m1.metric("PE (TTM)", f"{current_pe_ttm:.2f}", help="当前股价 / 过去12个月每股收益")
+    m2.metric("PE (Static)", f"{pe_static:.2f}" if pe_static else "N/A", help="当前股价 / 上一财年每股收益")
+    m3.metric("PE (Forward)", f"{pe_forward:.2f}", help=f"当前股价 / 预期每股收益 (Based on {growth_input}% growth)")
+    m4.metric("PEG", f"{peg:.2f}", help="PE (TTM) / 预期增长率 (理想值 < 1)")
+    m5.metric("中位 PE (Hist)", f"{pe_median:.2f}", help="历史上 PE 的中位数")
+
+    st.markdown("---")
     
     # 5. 绘制 PE Band
     st.markdown("#### 📉 PE Band 通道图")
+    # ... (Keep existing chart code)
     fig = go.Figure()
     
     # 真实股价

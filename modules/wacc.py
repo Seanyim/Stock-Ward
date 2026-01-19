@@ -41,5 +41,37 @@ def render_wacc_module(df_raw):
     cost_equity = rf + beta * erp
     wacc = we * cost_equity + wd * cost_debt * (1 - tax_rate)
     
-    st.info(f"WACC: {wacc:.2%} (Equity: {we:.1%} | Debt: {wd:.1%})")
+    st.info(f"👉 WACC: {wacc:.2%}")
+    
+    with st.expander("Show Calculation Details (计算过程)"):
+        st.markdown(r"""
+        $$
+        WACC = \frac{E}{V} \times Re + \frac{D}{V} \times Rd \times (1 - T)
+        $$
+        """)
+        
+        c_d1, c_d2, c_d3 = st.columns(3)
+        with c_d1:
+            st.markdown("**1. 资本结构**")
+            st.write(f"- 市值 (E): {market_cap/1e9:.2f} B")
+            st.write(f"- 债务 (D): {debt/1e9:.2f} B")
+            st.write(f"- 总价值 (V): {total_val/1e9:.2f} B")
+            st.write(f"- 权益占比 (E/V): {we:.1%}")
+            st.write(f"- 债务占比 (D/V): {wd:.1%}")
+            
+        with c_d2:
+            st.markdown("**2. 权益成本 (Re)**")
+            st.write(f"- 无风险 (Rf): {rf:.1%}")
+            st.write(f"- Beta: {beta}")
+            st.write(f"- ERP: {erp:.1%}")
+            st.write(f"- Re = {rf:.1%} + {beta} * {erp:.1%} = **{cost_equity:.1%}**")
+
+        with c_d3:
+            st.markdown("**3. 债务成本 (Rd)**")
+            st.write(f"- 利息支出: {interest/1e9:.2f} B")
+            st.write(f"- 债务总额: {debt/1e9:.2f} B")
+            st.write(f"- Rd (Int/Debt): {cost_debt:.1%}")
+            st.write(f"- 税率 (T): {tax_rate:.0%}")
+            st.write(f"- After-Tax Rd: {cost_debt * (1-tax_rate):.1%}")
+
     return wacc, rf

@@ -9,7 +9,7 @@ DB_FILE = "financial_data.db"
 DB_PATH = os.path.join(DB_DIR, DB_FILE)
 
 def init_db():
-    """初始化数据库：创建独立的财务表和市场表"""
+    """初始化数据库：创建独立的财务表和市场表，支持自动新增列"""
     if not os.path.exists(DB_DIR):
         os.makedirs(DB_DIR)
         
@@ -28,8 +28,9 @@ def init_db():
                     )''')
         
         # 2. 财务数据表 (手动录入)
-        metric_cols = [f"{m['id']} REAL" for m in FINANCIAL_METRICS]
-        cols_sql = ", ".join(metric_cols)
+        # 动态构建列定义，但 CREATE TABLE 只能用一次。后续需要 ALTER TABLE。
+        metric_cols_def = [f"{m['id']} REAL" for m in FINANCIAL_METRICS]
+        cols_sql = ", ".join(metric_cols_def)
         
         c.execute(f'''CREATE TABLE IF NOT EXISTS financial_records (
                         ticker TEXT,
@@ -39,11 +40,21 @@ def init_db():
                         {cols_sql},
                         PRIMARY KEY (ticker, year, period)
                     )''')
+        
+        # 2.1 自动迁移：检查是否有新增加的指标字段，如果没有则添加
+        c.execute("PRAGMA table_info(financial_records)")
+        existing_cols = [row[1] for row in c.fetchall()]
+        
+        for m in FINANCIAL_METRICS:
+            col_name = m['id']
+            if col_name not in existing_cols:
+                print(f"Migrating DB: Adding column {col_name} to financial_records")
+                try:
+                    c.execute(f"ALTER TABLE financial_records ADD COLUMN {col_name} REAL")
+                except Exception as e:
+                    print(f"Migration Error for {col_name}: {e}")
 
         # 3. [升级] 市场行情表 (增加市值、PE等字段)
-        # 注意：如果表已存在但缺列，SQLite 不会自动加列。
-        # 生产环境通常需要 Migration，这里我们用简单的 "CREATE IF NOT EXISTS"
-        # 如果您之前已经运行过，建议删除旧 db 文件重建，或者手动 alter table。
         c.execute('''CREATE TABLE IF NOT EXISTS market_daily (
                         ticker TEXT,
                         date TEXT,

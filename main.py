@@ -58,8 +58,12 @@ with tab2:
 with tab3:
     # PE 和 DCF 模块需要 calculator 处理后的数据，我们在模块内部调用 process_financial_data
     # 所以直接传 df_raw 即可
-    st.markdown("### PE & DCF 模型")
-    render_valuation_PE_tab(df_raw, current_unit)
-    st.divider()
-    wacc, rf = render_wacc_module(df_raw)
-    render_valuation_DCF_tab(df_raw, wacc, rf, current_unit)
+    
+    val_tab1, val_tab2 = st.tabs(["📉 PE 估值", "🚀 DCF 估值"])
+    
+    with val_tab1:
+        render_valuation_PE_tab(df_raw, current_unit)
+        
+    with val_tab2:
+        wacc, rf = render_wacc_module(df_raw)
+        render_valuation_DCF_tab(df_raw, wacc, rf, current_unit)
