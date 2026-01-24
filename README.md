@@ -1,7 +1,7 @@
 # PriceEstimated 📈 
 
 [![Python Version](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](https://opensource.org/license/apache-2-0)
+[![License: Apache](https://img.shields.io/badge/License-MIT-green.svg)](https://opensource.org/license/apache-2-0)
 [![Update Log](https://img.shields.io/badge/Updates-View%20Log-orange)](./README/updates.md)
 
 [English] | [简体中文](./README/README_ZH.md) |
