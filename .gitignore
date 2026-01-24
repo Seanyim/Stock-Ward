@@ -8,6 +8,8 @@ __pycache__/
 # VS Code
 .vscode/
 
+#License
+LICENSE
 
 # # Data (如有本地数据)
 # data/*.csv
@@ -18,3 +20,4 @@ __pycache__/
 # data/*.h5
 # data/*.ckpt
 # data/*.pt
+
