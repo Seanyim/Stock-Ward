@@ -98,16 +98,25 @@ def render_valuation_PE_tab(df_raw, unit_label):
     pe_static = (current_price / eps_static) if eps_static and eps_static > 0 else None
     
     # --- PEG 自动计算 (基于财报数据) ---
-    # 优先使用 NetIncome_TTM_YoY，其次使用 EPS_TTM_YoY
+    # 优先使用归母净利润增长率，其次使用 EPS 增长率
     growth_rate = None
     growth_source = None
     
-    if 'NetIncome_TTM_YoY' in df_single.columns:
-        latest_growth = df_single.iloc[-1].get('NetIncome_TTM_YoY', None)
+    # 新指标名称：NetIncomeToParent_TTM_YoY（归母净利润TTM同比）
+    if 'NetIncomeToParent_TTM_YoY' in df_single.columns:
+        latest_growth = df_single.iloc[-1].get('NetIncomeToParent_TTM_YoY', None)
         if pd.notna(latest_growth) and latest_growth > 0:
             growth_rate = latest_growth * 100  # 转为百分比
+            growth_source = "归母净利润 TTM 同比"
+    
+    # 备选：使用 NetIncome_TTM_YoY（旧版兼容）
+    if growth_rate is None and 'NetIncome_TTM_YoY' in df_single.columns:
+        latest_growth = df_single.iloc[-1].get('NetIncome_TTM_YoY', None)
+        if pd.notna(latest_growth) and latest_growth > 0:
+            growth_rate = latest_growth * 100
             growth_source = "净利润 TTM 同比"
     
+    # 备选：使用 EPS_TTM_YoY
     if growth_rate is None and 'EPS_TTM_YoY' in df_single.columns:
         latest_growth = df_single.iloc[-1].get('EPS_TTM_YoY', None)
         if pd.notna(latest_growth) and latest_growth > 0:
@@ -201,22 +210,35 @@ def render_valuation_PE_tab(df_raw, unit_label):
         line=dict(dash='dot', color='green')
     ))
     
-    # 需求3: 添加财报发布日垂直虚线
+    # 需求3: 添加财报发布日垂直虚线（使用shape避免Timestamp兼容性问题）
     for _, row in valid_pe.iterrows():
         report_date = row['report_date']
         period = row.get('period', '')
         year = row.get('year', '')
         label = f"{year} {period}" if year and period else ""
         
-        fig.add_vline(
-            x=report_date, 
-            line_dash="dash", 
-            line_color="rgba(128, 128, 128, 0.3)",
-            annotation_text=label,
-            annotation_position="top",
-            annotation_font_size=8,
-            annotation_font_color="gray"
+        # 使用 add_shape 绘制垂直线
+        fig.add_shape(
+            type="line",
+            x0=report_date,
+            x1=report_date,
+            y0=0,
+            y1=1,
+            yref="paper",
+            line=dict(color="rgba(128, 128, 128, 0.3)", width=1, dash="dash")
         )
+        
+        # 单独添加注释
+        if label:
+            fig.add_annotation(
+                x=report_date,
+                y=1,
+                yref="paper",
+                text=label,
+                showarrow=False,
+                font=dict(size=8, color="gray"),
+                yshift=5
+            )
     
     fig.update_layout(
         title="PE Band 通道图 (虚线标记财报发布日)",

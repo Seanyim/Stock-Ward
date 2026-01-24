@@ -149,7 +149,14 @@ class MarketDataFetcher:
             )
             
             status["history"] = True
-            status["msg"] = f"同步完成。最新股价: {latest['Close']:.2f}, 市值: {latest.get('market_cap', 0)/1e9:.2f}B, PE(TTM): {latest.get('pe_ttm', 0):.2f}"
+            
+            # 安全格式化，处理 None 值
+            close_price = latest.get('Close', 0) or 0
+            market_cap = latest.get('market_cap', 0) or 0
+            pe_ttm_val = latest.get('pe_ttm')
+            pe_str = f"{pe_ttm_val:.2f}" if pe_ttm_val is not None and not pd.isna(pe_ttm_val) else "N/A"
+            
+            status["msg"] = f"同步完成。最新股价: {close_price:.2f}, 市值: {market_cap/1e9:.2f}B, PE(TTM): {pe_str}"
             return status
 
         except Exception as e:
