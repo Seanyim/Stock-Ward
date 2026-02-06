@@ -1,18 +1,29 @@
 import streamlit as st
-from modules.calculator import process_financial_data
-from modules.db import get_company_meta
+from modules.core.calculator import process_financial_data
+from modules.core.db import get_company_meta
+from modules.core.risk_free_rate import get_risk_free_rate
 
 def render_wacc_module(df_raw):
     st.markdown("### WACC 计算器")
     
-    if df_raw.empty: return 0.1, 0.04
+    # 获取无风险利率（即使没有财务数据也能获取）
+    auto_rf = get_risk_free_rate()
+    
+    if df_raw.empty:
+        st.info("暂无财务数据")
+        return 0.1, auto_rf
     
     # 1. 自动获取财务数据 (债务, 利息)
     _, df_single = process_financial_data(df_raw)
+    
+    if df_single.empty:
+        st.info("财务数据处理后为空")
+        return 0.1, auto_rf
+    
     latest = df_single.iloc[-1]
     
-    interest = latest.get('Interest_Expense_TTM', 0)
-    debt = latest.get('Total_Debt', 0) # 存量指标直接取最新
+    interest = latest.get('Interest_Expense_TTM', 0) or 0
+    debt = latest.get('Total_Debt', 0) or 0  # 存量指标直接取最新
     
     # 2. 自动获取市值 (从数据库快照)
     ticker = df_raw.iloc[0]['ticker']
@@ -33,10 +44,13 @@ def render_wacc_module(df_raw):
     cost_debt = (interest / debt) if debt > 0 else 0.05
     tax_rate = 0.21 # 简化
     
-    c1, c2 = st.columns(2)
-    rf = c1.number_input("无风险利率 (%)", value=4.0) / 100
+    # 5. 自动获取无风险利率
+    auto_rf = get_risk_free_rate()
+    
+    c1, c2, c3 = st.columns(3)
+    rf = c1.number_input("无风险利率 (%)", value=auto_rf * 100, help="自动获取 10Y 国债收益率") / 100
     beta = c2.number_input("Beta", value=1.2)
-    erp = 0.055
+    erp = c3.number_input("股权风险溢价 (%)", value=5.5) / 100
     
     cost_equity = rf + beta * erp
     wacc = we * cost_equity + wd * cost_debt * (1 - tax_rate)

@@ -4,8 +4,8 @@ import streamlit as st
 import os
 import time
 import numpy as np
-from modules.db import save_market_history, update_company_snapshot, get_financial_records
-from modules.calculator import process_financial_data
+from modules.core.db import save_market_history, update_company_snapshot, get_financial_records
+from modules.core.calculator import process_financial_data
 
 class MarketDataFetcher:
     def __init__(self, proxy=None):
@@ -51,15 +51,26 @@ class MarketDataFetcher:
             if hasattr(hist.index, 'tz_localize'):
                 hist.index = hist.index.tz_localize(None)
             
-            # --- 2. 获取当前股本 (Shares) ---
+            # --- 2. 获取当前股本 (Shares) 和 公司信息 (Sector/Industry) ---
             # 历史股本很难获取，我们使用当前股本估算历史市值 (近似法)
-            st.write("2. 获取股本信息...")
+            st.write("2. 获取股本及行业信息...")
             shares = 0
+            sector = None
+            industry = None
+            
             try:
+                # 尝试 fast_info
                 shares = ticker.fast_info.shares
             except:
-                info, _ = self._safe_call(lambda: ticker.info, "fetch_shares")
-                if info: shares = info.get('sharesOutstanding', 0)
+                pass
+            
+            # 获取完整 info 以提取 sector/industry
+            info, _ = self._safe_call(lambda: ticker.info, "fetch_info")
+            if info:
+                if shares == 0: shares = info.get('sharesOutstanding', 0)
+                sector = info.get('sector', 'Unknown')
+                industry = info.get('industry', 'Unknown')
+                st.caption(f"行业: {sector} | 细分: {industry}")
             
             if shares == 0:
                 st.warning("⚠️ 无法获取股本(Shares)，市值计算将跳过。")
@@ -140,12 +151,14 @@ class MarketDataFetcher:
             st.write("4. 保存至数据库...")
             save_market_history(ticker_symbol, hist)
             
-            # 更新快照
+            # 更新快照 (含 Sector/Industry)
             latest = hist.iloc[-1]
             update_company_snapshot(
                 ticker_symbol, 
                 latest.get('market_cap', 0), 
-                latest.get('eps_ttm', 0)
+                latest.get('eps_ttm', 0),
+                sector=sector,
+                industry=industry
             )
             
             status["history"] = True
@@ -156,7 +169,7 @@ class MarketDataFetcher:
             pe_ttm_val = latest.get('pe_ttm')
             pe_str = f"{pe_ttm_val:.2f}" if pe_ttm_val is not None and not pd.isna(pe_ttm_val) else "N/A"
             
-            status["msg"] = f"同步完成。最新股价: {close_price:.2f}, 市值: {market_cap/1e9:.2f}B, PE(TTM): {pe_str}"
+            status["msg"] = f"同步完成。最新股价: {close_price:.2f}, 市值: {market_cap/1e9:.2f}B, PE(TTM): {pe_str}, 行业: {sector}"
             return status
 
         except Exception as e:

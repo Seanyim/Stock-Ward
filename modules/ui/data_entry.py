@@ -1,11 +1,14 @@
 import streamlit as st
+import os
 import pandas as pd
 import numpy as np
+import json
 import plotly.graph_objects as go
 from datetime import date, datetime, timedelta
-from modules.config import FINANCIAL_METRICS
-from modules.db import get_financial_records, save_financial_record, save_company_meta, get_company_meta, get_market_history
-from modules.data_fetcher import get_fetcher
+from modules.core.config import FINANCIAL_METRICS, CATEGORY_ORDER
+from modules.core.db import get_financial_records, save_financial_record, delete_financial_record, save_company_meta, get_company_meta, get_market_history
+from modules.data.data_fetcher import get_fetcher
+from modules.data.json_importer import parse_financial_json, validate_json_structure, import_json_to_database
 
 
 def _filter_by_time_window(df: pd.DataFrame, time_window: str, date_col: str = 'date') -> pd.DataFrame:
@@ -119,7 +122,7 @@ def render_entry_tab(selected_company, unit_label):
             time_window = st.selectbox(
                 "📅 选择时间窗口",
                 ["1年", "3年", "5年", "10年", "全部历史"],
-                index=4,  # 默认全部历史
+                index=2,  # 默认 5年
                 key="market_time_window"
             )
             
@@ -167,7 +170,7 @@ def render_entry_tab(selected_company, unit_label):
                         height=300, 
                         margin=dict(l=0, r=0, t=30, b=0)
                     )
-                    st.plotly_chart(fig, use_container_width=True)
+                    st.plotly_chart(fig, width="stretch")
                     
                 with tab_chart2:
                     # 只有当 PE 数据存在时才展示
@@ -184,7 +187,7 @@ def render_entry_tab(selected_company, unit_label):
                             height=300, 
                             margin=dict(l=0, r=0, t=30, b=0)
                         )
-                        st.plotly_chart(fig_pe, use_container_width=True)
+                        st.plotly_chart(fig_pe, width="stretch")
                     else:
                         st.caption("暂无 PE 数据 (需先录入财报以计算 EPS)")
                 
@@ -201,7 +204,7 @@ def render_entry_tab(selected_company, unit_label):
                             height=300, 
                             margin=dict(l=0, r=0, t=30, b=0)
                         )
-                        st.plotly_chart(fig_mc, use_container_width=True)
+                        st.plotly_chart(fig_mc, width="stretch")
                     else:
                         st.caption("暂无市值数据")
         else:
@@ -211,8 +214,165 @@ def render_entry_tab(selected_company, unit_label):
 
     # --- 2. 财务数据录入 (Input Grouping) ---
     st.markdown("#### ➕ 录入/编辑 财务报告")
-    st.caption("系统将根据以下规则自动计算单季度数据：Q2=H1-Q1, Q3=Q9-H1, Q4=FY-Q9")
     
+    # 获取公司元数据（用于判断地区）
+    meta = get_company_meta(selected_company)
+    region = meta.get('region', 'US')
+    sector = meta.get('sector', 'Unknown')
+    industry = meta.get('industry', 'Unknown')
+    
+    st.info(f"📍 公司信息: {meta.get('name', selected_company)} | 地区: {region} | 行业: {sector} / {industry}")
+    
+    # 地区化说明
+    if region == 'US':
+        st.caption("🇺🇸 美国股市：使用单季度数据录入 (Q1, Q2, Q3, Q4)")
+    else:
+        st.caption(f"{'🇨🇳' if region == 'CN' else '🇭🇰' if region == 'HK' else '🇯🇵' if region == 'JP' else '🇹🇼'} 累积季度数据：Q2=H1-Q1, Q3=Q9-H1, Q4=FY-Q9")
+    
+    # --- 批量导入选项 ---
+    with st.expander("📋 批量导入 (JSON)", expanded=False):
+        st.markdown("**从 JSON 文件批量导入财务数据**")
+        st.caption("💡 系统自动识别报表类型和数据单位（亿/万），支持利润表、资产负债表、现金流量表、关键指标的混合导入")
+        
+        json_input = st.text_area(
+            "粘贴 JSON 数据",
+            height=300,
+            placeholder='{\n  "headers": ["2024/Q1", "2024/Q2", ...],\n  "data": [\n    {"metric": "总收入", "values": ["565.17亿", ...]},\n    {"metric": "截止日期", "values": ["2023/09/30", ...]}\n  ]\n}',
+            key="json_import_input"
+        )
+        
+        # Template Download Button
+        template_path = os.path.join("upload", "financial_data_template.json")
+        if os.path.exists(template_path):
+            with open(template_path, "r", encoding="utf-8") as f:
+                template_data = f.read()
+            st.download_button(
+                label="📥 下载 JSON 模版文件",
+                data=template_data,
+                file_name="financial_data_template.json",
+                mime="application/json",
+                help="点击下载标准 JSON 格式模版，填写后粘贴到上框"
+            )
+
+        
+        col_preview, col_import = st.columns(2)
+        
+        with col_preview:
+            if st.button("🔍 预览数据", key="btn_preview"):
+                if json_input:
+                    try:
+                        json_data = json.loads(json_input)
+                        is_valid, msg = validate_json_structure(json_data)
+                        
+                        if is_valid:
+                            records = parse_financial_json(json_data, selected_company)
+                            st.success(f"✅ {msg}，解析到 {len(records)} 条记录")
+                            
+                            # 显示预览表格
+                            if records:
+                                preview_df = pd.DataFrame(records[:5])
+                                st.dataframe(preview_df, use_container_width=True)
+                        else:
+                            st.error(f"❌ {msg}")
+                    except json.JSONDecodeError as e:
+                        st.error(f"❌ JSON 格式错误: {e}")
+                else:
+                    st.warning("请先粘贴 JSON 数据")
+        
+        with col_import:
+            if st.button("💾 导入数据库", key="btn_import", type="primary"):
+                if json_input:
+                    try:
+                        json_data = json.loads(json_input)
+                        success_count, errors = import_json_to_database(
+                            json_data, selected_company
+                        )
+                        
+                        if success_count > 0:
+                            st.success(f"✅ 成功导入 {success_count} 条记录")
+                        
+                        if errors:
+                            for err in errors[:5]:
+                                st.warning(err)
+                        
+                        if success_count > 0:
+                            st.rerun()
+                    except json.JSONDecodeError as e:
+                        st.error(f"❌ JSON 格式错误: {e}")
+                else:
+                    st.warning("请先粘贴 JSON 数据")
+    
+    # --- 批量管理选项 ---
+    with st.expander("🛠️ 批量管理/修正数据 (Batch Editor)", expanded=False):
+        st.caption("💡 可在此直接修改或删除历史数据。勾选 'delete' 列并点击保存即可删除对应行。")
+        
+        batch_records = get_financial_records(selected_company)
+        
+        if batch_records:
+            # 准备数据供编辑器使用
+            df_edit = pd.DataFrame(batch_records)
+            
+            if 'year' in df_edit.columns:
+                # 确保关键列在最前
+                key_cols = ['year', 'period', 'report_date']
+                metric_col_ids = [m['id'] for m in FINANCIAL_METRICS if m['id'] in df_edit.columns]
+                
+                # 初始化 delete 列
+                df_edit['delete'] = False
+                
+                column_config = {
+                    "year": st.column_config.NumberColumn("年份", disabled=True),
+                    "period": st.column_config.TextColumn("期间", disabled=True),
+                    "delete": st.column_config.CheckboxColumn("删除?", help="勾选以删除此记录"),
+                    "report_date": st.column_config.TextColumn("披露日期"),
+                }
+                
+                # 动态添加指标列配置
+                for m in FINANCIAL_METRICS:
+                    if m['id'] in metric_col_ids:
+                        column_config[m['id']] = st.column_config.NumberColumn(
+                            m['label'],
+                            format=m.get('format', "%.2f")
+                        )
+                
+                # 列排序
+                col_order = ['delete'] + [k for k in key_cols if k in df_edit.columns] + metric_col_ids
+                
+                edited_df = st.data_editor(
+                    df_edit,
+                    column_config=column_config,
+                    column_order=col_order,
+                    hide_index=True,
+                    use_container_width=True,
+                    num_rows="fixed", 
+                    key="batch_editor"
+                )
+                
+                if st.button("💾 保存批量修改", type="primary"):
+                    # 1. 处理删除
+                    to_delete = edited_df[edited_df['delete'] == True]
+                    del_count = 0
+                    for _, row in to_delete.iterrows():
+                        if delete_financial_record(row['ticker'], row['year'], row['period']):
+                            del_count += 1
+                    
+                    # 2. 处理修改 (排除已删除的行)
+                    to_update = edited_df[edited_df['delete'] == False]
+                    
+                    update_count = 0
+                    for _, row in to_update.iterrows():
+                        record = row.to_dict()
+                        if 'delete' in record: del record['delete']
+                        save_financial_record(record)
+                        update_count += 1
+                    
+                    st.success(f"操作完成: 删除 {del_count} 条, 更新 {update_count} 条")
+                    st.rerun()
+            else:
+                 st.error("数据异常：缺失年份列")
+        else:
+            st.info("暂无数据可编辑")
+
     # 自动检测是否已有数据 (先获取)
     existing_records = get_financial_records(selected_company)
     
@@ -221,7 +381,17 @@ def render_entry_tab(selected_company, unit_label):
     with c_base1:
         year_input = st.number_input("财年 (Year)", 2000, 2030, 2025, key="year_select")
     with c_base2:
-        period_input = st.selectbox("累计周期", ["Q1", "H1", "Q9", "FY"], key="period_select")
+        # 根据地区选择周期选项
+        if region == 'US':
+            # 美国：单季度输入 (Q1, Q2, Q3, Q4)
+            period_options = ["Q1", "Q2", "Q3", "Q4"]
+            period_label = "季度 (Quarter)"
+        else:
+            # 中国/香港等：累积季度输入 (Q1, H1, Q9, FY)
+            period_options = ["Q1", "H1", "Q9", "FY"]
+            period_label = "累计周期"
+        
+        period_input = st.selectbox(period_label, period_options, key="period_select")
     
     # 检测年份/周期是否发生变化，如果变化则清除表单缓存
     current_selection = f"{selected_company}_{year_input}_{period_input}"
@@ -257,7 +427,22 @@ def render_entry_tab(selected_company, unit_label):
     with c_base3:
         # 使用动态 key 确保切换年份/周期时日期能正确回填
         report_date_key = f"{selected_company}_{year_input}_{period_input}_report_date"
-        report_date_input = st.date_input("财报披露日", value=default_report_date, key=report_date_key)
+        default_date_str = default_report_date.strftime("%Y-%m-%d")
+        
+        # 支持手动输入日期 (YYYY-MM-DD)
+        date_str = st.text_input(
+            "财报披露日 (YYYY-MM-DD)", 
+            value=default_date_str, 
+            key=report_date_key,
+            help="格式: 2024-01-15"
+        )
+        
+        # 解析日期
+        try:
+            report_date_input = pd.to_datetime(date_str).date()
+        except:
+            st.warning(f"日期格式错误，请使用 YYYY-MM-DD 格式")
+            report_date_input = default_report_date
     
     # 需求2: 自动获取市值快照
     df_market_for_snapshot = get_market_history(selected_company)
@@ -304,7 +489,7 @@ def render_entry_tab(selected_company, unit_label):
         input_values = {}
         
         # 导入类别顺序
-        from modules.config import CATEGORY_ORDER
+        from modules.core.config import CATEGORY_ORDER
         sorted_cats = sorted(grouped_metrics.keys(), 
                             key=lambda x: CATEGORY_ORDER.index(x) if x in CATEGORY_ORDER else 99)
         
@@ -341,7 +526,7 @@ def render_entry_tab(selected_company, unit_label):
                         input_values[m['id']] = val
         
         st.markdown("---")
-        submitted = st.form_submit_button("💾 保存/更新数据", use_container_width=True)
+        submitted = st.form_submit_button("💾 保存/更新数据", width="stretch")
         
         if submitted:
             record = {
@@ -350,7 +535,20 @@ def render_entry_tab(selected_company, unit_label):
                 "period": period_input,
                 "report_date": report_date_input.strftime("%Y-%m-%d")
             }
-            record.update(input_values)
+            
+            # 处理比率类指标：将 0 值视为数据缺失 (None)
+            ratio_metrics = [
+                'GrossMargin', 'OperatingMargin', 'EBITMargin', 'NetProfitMargin',
+                'EBITDAMargin', 'EffectiveTaxRate', 'ROE', 'ROA', 'ROIC',
+                'FCFToRevenue', 'FCFToNetIncome'
+            ]
+            
+            for key, val in input_values.items():
+                if key in ratio_metrics and val == 0.0:
+                    # 比率类指标：0 表示未填写，保存为 None
+                    record[key] = None
+                else:
+                    record[key] = val
             
             # 注意：不再添加 AutoMarketCap/AutoClosePrice 到数据库
             # 市值快照信息通过关联 market_daily 表获取
@@ -365,8 +563,15 @@ def render_entry_tab(selected_company, unit_label):
     if existing_records:
         st.markdown("### 📋 已录入历史数据列表")
         df_show = pd.DataFrame(existing_records)
-        p_map = {"Q1":1, "H1":2, "Q9":3, "FY":4}
-        df_show['s'] = df_show['period'].map(p_map)
+        # 扩展排序映射以支持单季度和累积季度
+        p_map = {
+            "Q1": 1, 
+            "Q2": 2, "H1": 2, 
+            "Q3": 3, "Q9": 3, 
+            "Q4": 4, "FY": 4
+        }
+        # 使用 map 时处理未知 key (设为 0)
+        df_show['s'] = df_show['period'].map(p_map).fillna(0)
         df_show = df_show.sort_values(['year', 's'], ascending=[False, False])
         
         # 动态展示所有配置的列
@@ -374,4 +579,4 @@ def render_entry_tab(selected_company, unit_label):
         valid_cols = [c for c in all_metric_ids if c in df_show.columns]
         
         cols_to_show = ['year', 'period', 'report_date'] + valid_cols
-        st.dataframe(df_show[cols_to_show], use_container_width=True)
+        st.dataframe(df_show[cols_to_show], width="stretch")

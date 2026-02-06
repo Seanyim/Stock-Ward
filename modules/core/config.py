@@ -6,27 +6,27 @@ FINANCIAL_METRICS = [
     # ============================================================
     # 关键指标 (Key Ratios) - 11项
     # ============================================================
-    {"id": "GrossMargin", "label": "毛利率 (%)", "format": "%.2f", "default": 0.0, 
+    {"id": "GrossMargin", "label": "毛利率 (%)", "format": "%.2f", "default": None, 
      "category": "关键指标", "help": "毛利 / 总收入 × 100，反映产品定价能力和成本控制"},
-    {"id": "OperatingMargin", "label": "营业利润率 (%)", "format": "%.2f", "default": 0.0,
+    {"id": "OperatingMargin", "label": "营业利润率 (%)", "format": "%.2f", "default": None,
      "category": "关键指标", "help": "营业利润 / 总收入 × 100，反映核心业务盈利能力"},
-    {"id": "EBITMargin", "label": "EBIT利润率 (%)", "format": "%.2f", "default": 0.0,
+    {"id": "EBITMargin", "label": "EBIT利润率 (%)", "format": "%.2f", "default": None,
      "category": "关键指标", "help": "息税前利润 / 总收入 × 100，剔除融资和税收影响"},
-    {"id": "NetProfitMargin", "label": "归母净利润率 (%)", "format": "%.2f", "default": 0.0,
+    {"id": "NetProfitMargin", "label": "归母净利润率 (%)", "format": "%.2f", "default": None,
      "category": "关键指标", "help": "归属母公司净利润 / 总收入 × 100"},
-    {"id": "EBITDAMargin", "label": "EBITDA利润率 (%)", "format": "%.2f", "default": 0.0,
+    {"id": "EBITDAMargin", "label": "EBITDA利润率 (%)", "format": "%.2f", "default": None,
      "category": "关键指标", "help": "EBITDA / 总收入 × 100，剔除折旧摊销的盈利能力"},
-    {"id": "EffectiveTaxRate", "label": "有效税率 (%)", "format": "%.2f", "default": 0.0,
+    {"id": "EffectiveTaxRate", "label": "有效税率 (%)", "format": "%.2f", "default": None,
      "category": "关键指标", "help": "所得税费用 / 税前利润 × 100"},
-    {"id": "ROE", "label": "ROE 净资产收益率 (%)", "format": "%.2f", "default": 0.0,
+    {"id": "ROE", "label": "ROE 净资产收益率 (%)", "format": "%.2f", "default": None,
      "category": "关键指标", "help": "净利润 / 股东权益 × 100，衡量股东资本回报"},
-    {"id": "ROA", "label": "ROA 总资产收益率 (%)", "format": "%.2f", "default": 0.0,
+    {"id": "ROA", "label": "ROA 总资产收益率 (%)", "format": "%.2f", "default": None,
      "category": "关键指标", "help": "净利润 / 总资产 × 100，衡量资产利用效率"},
-    {"id": "ROIC", "label": "ROIC 投入资本回报率 (%)", "format": "%.2f", "default": 0.0,
+    {"id": "ROIC", "label": "ROIC 投入资本回报率 (%)", "format": "%.2f", "default": None,
      "category": "关键指标", "help": "NOPAT / (总资产 - 流动负债) × 100，衡量资本配置效率"},
-    {"id": "FCFToRevenue", "label": "自由现金流/收入比 (%)", "format": "%.2f", "default": 0.0,
+    {"id": "FCFToRevenue", "label": "自由现金流/收入比 (%)", "format": "%.2f", "default": None,
      "category": "关键指标", "help": "自由现金流 / 总收入 × 100，反映收入转化为现金能力"},
-    {"id": "FCFToNetIncome", "label": "自由现金流/净利润比 (%)", "format": "%.2f", "default": 0.0,
+    {"id": "FCFToNetIncome", "label": "自由现金流/净利润比 (%)", "format": "%.2f", "default": None,
      "category": "关键指标", "help": "自由现金流 / 归母净利润 × 100，反映利润质量"},
 
     # ============================================================
@@ -68,7 +68,7 @@ FINANCIAL_METRICS = [
      "category": "资产负债表", "help": "一年以上的长期债务"},
     {"id": "TotalEquity", "label": "股东权益合计", "format": "%.3f", "default": 0.0,
      "category": "资产负债表", "help": "总资产 - 总负债"},
-    {"id": "EquityToParent", "label": "归属母公司股东权益", "format": "%.3f", "default": 0.0,
+    {"id": "EquityToParent", "label": "归属母公司股东权益合计", "format": "%.3f", "default": 0.0,
      "category": "资产负债表", "help": "归属于母公司股东的净资产"},
 
     # ============================================================
@@ -76,15 +76,15 @@ FINANCIAL_METRICS = [
     # ============================================================
     {"id": "OperatingCashFlow", "label": "经营活动现金流量净额", "format": "%.3f", "default": 0.0,
      "category": "现金流量表", "help": "日常经营活动产生的现金净流入"},
-    {"id": "ContinuingOpCashFlow", "label": "持续经营活动现金流量", "format": "%.3f", "default": 0.0,
+    {"id": "ContinuingOpCashFlow", "label": "持续经营活动现金流量净额", "format": "%.3f", "default": 0.0,
      "category": "现金流量表", "help": "持续经营业务产生的现金流"},
     {"id": "InvestingCashFlow", "label": "投资活动现金流量净额", "format": "%.3f", "default": 0.0,
      "category": "现金流量表", "help": "投资活动产生的现金净流出（通常为负）"},
-    {"id": "ContinuingInvCashFlow", "label": "持续投资活动现金流量", "format": "%.3f", "default": 0.0,
+    {"id": "ContinuingInvCashFlow", "label": "持续投资活动现金流量净额", "format": "%.3f", "default": 0.0,
      "category": "现金流量表", "help": "持续性投资活动的现金流"},
     {"id": "FinancingCashFlow", "label": "融资活动现金流量净额", "format": "%.3f", "default": 0.0,
      "category": "现金流量表", "help": "融资活动产生的现金净流入/流出"},
-    {"id": "ContinuingFinCashFlow", "label": "持续融资活动现金流量", "format": "%.3f", "default": 0.0,
+    {"id": "ContinuingFinCashFlow", "label": "持续融资活动现金流量净额", "format": "%.3f", "default": 0.0,
      "category": "现金流量表", "help": "持续性融资活动的现金流"},
     {"id": "CashEndOfPeriod", "label": "现金及等价物期末余额", "format": "%.3f", "default": 0.0,
      "category": "现金流量表", "help": "期末持有的现金及现金等价物"},
@@ -97,8 +97,13 @@ CATEGORY_ORDER = ["关键指标", "利润表", "资产负债表", "现金流量�
 
 # 用于增长率计算的指标 (流量指标，需要做TTM和YoY计算)
 GROWTH_METRIC_KEYS = [
-    "TotalRevenue", "GrossProfit", "OperatingProfit", "NetIncome", 
-    "NetIncomeToParent", "EPS", "OperatingCashFlow", "FreeCashFlow"
+    # 利润表
+    "TotalRevenue", "OperatingRevenue", "GrossProfit", "OperatingExpenses", 
+    "OperatingProfit", "PreTaxIncome", "NetIncome", "NetIncomeToParent", "EPS",
+    # 现金流量表
+    "OperatingCashFlow", "ContinuingOpCashFlow", "InvestingCashFlow", 
+    "ContinuingInvCashFlow", "FinancingCashFlow", "ContinuingFinCashFlow", 
+    "FreeCashFlow"
 ]
 
 # 所有指标ID列表
