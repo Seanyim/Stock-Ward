@@ -1,126 +1,155 @@
-# 📈 Stock-Ward
+# Stock-Ward
 
-[![Python Version](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](https://opensource.org/licenses/MIT)
-[![Update Log](https://img.shields.io/badge/Updates-View%20Log-orange)](./README/updates.md)
+[![Python](https://img.shields.io/badge/Python-3.10%2B-3776AB?logo=python&logoColor=white)](https://www.python.org/downloads/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-2ea44f.svg)](LICENSE)
 
-[English] | [简体中文](./README/README_ZH.md)
+[English](README.md) | [简体中文](README/README_ZH.md)
 
-**Your Elegant, High-Performance Quantitative Investment & Valuation Dashboard**
+A local, bilingual equity-research terminal that combines multi-source financial data, valuation models, technical indicators, company quality scores, news, and retail discussion in one desktop-style interface.
 
-Stock-Ward is a professional-grade financial analysis workspace meticulously crafted with Python and Streamlit. It streamlines the entire value investing workflow—from effortlessly fetching global market data and intelligently normalizing financial statements, to applying rigorous valuation models like PE Bands and DCF.
+Stock-Ward runs on your machine. Its FastAPI backend stores research data in SQLite, while a dense browser UI or native `pywebview` window provides the terminal experience.
 
-Discover undeniably undervalued assets through a data-driven, beautifully visualized experience.
+![Stock-Ward dashboard](assets/images/dashboard_placeholder.png)
 
----
+> Stock-Ward is a research tool, not financial advice. Validate source data and assumptions before making investment decisions.
 
-## 📸 Glimpse Inside
+## Highlights
 
-|                  Dashboard Overview                   |                  Valuation Modeling                   |
-| :---------------------------------------------------: | :---------------------------------------------------: |
-| ![Dashboard](assets/images/dashboard_placeholder.png) | ![Valuation](assets/images/valuation_placeholder.png) |
+- **Keyless financial data:** fetch annual and quarterly statements from yfinance, SEC EDGAR, and Nasdaq without paid API keys.
+- **Cross-source verification:** reconcile each period and metric, retain provenance, flag conflicts, and compare quarterly totals with reported fiscal-year figures.
+- **Valuation suite:** composite fair value, forward and reverse DCF, WACC sensitivity, P/E bands, PEG, EV/EBITDA, Monte Carlo analysis, profitability, and growth diagnostics.
+- **Market context:** live quotes, price history, RSI, MACD, moving averages, returns, volatility, analyst estimates, and the US 10-year risk-free rate.
+- **Research synthesis:** company grades, financial-health checks, investor-style scorecards, QG-Pro factors, news sentiment, and engagement-weighted retail discussion.
+- **Terminal workflow:** editable watchlists, keyboard navigation, dark/light themes, and an English/Chinese interface.
+- **Local persistence:** financial records, source provenance, watchlists, and analysis data are stored in SQLite under `data/`.
 
-> _Transform complex financial data into clear, actionable insights._
+## Data sources
 
----
+| Source | Role | API key |
+|---|---|---:|
+| yfinance / Yahoo Finance | Statements, quotes, price history, news | No |
+| SEC EDGAR | Official US-company filings and XBRL facts | No |
+| Nasdaq | Statements, company data, analyst context | No |
+| Stooq | Price-history fallback | No |
+| Reddit | Retail-investor discussion and engagement | No |
+| StockTwits | Connectivity indicator retained by the source monitor | No |
 
-## ✨ Why Choose Stock-Ward?
+Coverage varies by ticker, market, source availability, and network conditions. SEC data is primarily relevant to US-listed issuers.
 
-### 🌍 Global Market Coverage
+## Quick start
 
-Seamlessly manage and analyze companies across major global markets with automatic currency handling and unit conversion (Billion/Million).
+### Requirements
 
-- **US** (🇺🇸 United States)
-- **CN** (🇨🇳 China A-Shares)
-- **HK** (🇭🇰 Hong Kong)
-- **JP** (🇯🇵 Japan)
-- **TW** (🇹🇼 Taiwan)
-
-### 🧠 Intelligent Data Engine
-
-- **Cumulative to Single Quarter (SQ)**: Our built-in algorithm automatically decrypts cumulative financial reports (e.g., Q3 YTD) into discrete single-quarter metrics for precise trend analysis.
-- **Smart Backfilling**: Powered by `yfinance`, the system automatically fetches and aligns historical market caps and stock prices based on actual report dates.
-
-### 📊 Comprehensive Valuation Toolkit
-
-- **PE Band Analysis**: Visualize historical PE ratios with standard deviation bands and percentile rankings to instantly judge current valuation levels.
-- **Discounted Cash Flow (DCF)**: Features an automated WACC calculation module, flexible growth and terminal value assumptions, and supports both TTM (Trailing Twelve Months) and FY (Fiscal Year) projections.
-- **Advanced Insights**: Dive deeper with PEG Ratio analysis, ROIC/ROE quality assessments, and track analyst consensus.
-
-### 📈 Interactive Visualizations
-
-- Leverage dynamic, responsive charts powered by Plotly to analyze Revenue, Net Income, Margins, and Cash Flow trends over time.
-
----
-
-## 🛠️ Built With
-
-- **[Streamlit](https://streamlit.io/)**: Delivering a responsive, interactive, and beautiful web UI.
-- **[Pandas](https://pandas.pydata.org/)**: The powerhouse for heavy financial data manipulation.
-- **[SQLite](https://www.sqlite.org/)**: A lightweight, serverless database keeping your data local and secure.
-- **[yfinance](https://github.com/ranarousset/yfinance)**: Ensuring reliable, real-time market data access.
-
----
-
-## 🚀 Getting Started
-
-Begin your quantitative journey in just a few steps:
-
-### Prerequisites
-
-- Python 3.8 or higher
+- Python 3.10 or newer recommended
 - Git
+- Internet access for live market and financial data
 
-### Installation
+### Windows
 
-1. **Clone the repository**
+```powershell
+git clone https://github.com/Seanyim/Stock-Ward.git
+cd Stock-Ward
+.\run.bat
+```
 
-   ```bash
-   git clone https://github.com/Seanyim/Stock-Ward.git
-   cd Stock-Ward
-   ```
+`run.bat` creates `.venv`, installs dependencies when needed, and launches Stock-Ward. The app normally opens in a native desktop window; if a compatible webview is unavailable, it opens in your default browser.
 
-2. **Install dependencies**
+### macOS or Linux
 
-   ```bash
-   pip install -r requirements.txt
-   ```
+```bash
+git clone https://github.com/Seanyim/Stock-Ward.git
+cd Stock-Ward
+python3 run.py
+```
 
-3. **Launch the application**
+`run.py` creates a local virtual environment on first launch and installs the packages in `requirements.txt`.
 
-   ```bash
-   streamlit run main.py
-   ```
+### Manual launch
 
-4. **Explore the dashboard**
-   Open your browser and navigate to `http://localhost:8501`.
+```bash
+python -m venv .venv
+# Windows: .venv\Scripts\activate
+# macOS/Linux: source .venv/bin/activate
+python -m pip install -r requirements.txt
+python run.py
+```
 
----
+The local server listens at `http://127.0.0.1:8377`. Set a different port before launch with the `STOCKWARD_PORT` environment variable. Set `STOCKWARD_BROWSER=1` to force browser mode.
 
-## 📖 How to Use
+## Using the terminal
 
-Follow this simple workflow to evaluate your next investment:
+1. Enter a ticker in the command bar and press **Enter** or **GO**.
+2. Select **REFRESH** to fetch statements, prices, analyst data, news, and social discussion, then run cross-source reconciliation.
+3. Move through the six workspaces:
+   - **F1 Overview** — quote, summary, grade, quality dimensions, and key trends.
+   - **F2 Fundamentals** — annual or quarterly statements and financial narrative.
+   - **F3 Valuation** — composite valuation, DCF, P/E, EV/EBITDA, growth, profitability, and scenario analysis.
+   - **F4 Masters** — investor-style scoring frameworks and QG-Pro analysis.
+   - **F5 News** — headlines, sentiment, forward signals, and retail discussion.
+   - **F6 Data Quality** — provider status, provenance, agreement, conflicts, and integrity checks.
+4. Use the watchlist rail to create groups, add or remove tickers, rename groups, and move companies between them.
 
-1. **Add a Company** 🏢
-   Navigate to the sidebar, enter the ticker (e.g., `AAPL`, `600519.SS`, `9988.HK`), select the region and unit, and click "Add/Update Company".
+Press `/` to focus the command bar. Use the controls in the upper-right corner to switch language, theme, and inspect live source connectivity.
 
-2. **Input Financials** 📝
-   Head to the **"Data Entry"** tab to input historical financial data. The system handles the heavy lifting of fetching relevant market prices.
+## How verification works
 
-3. **Analyze Trends** 📉
-   Switch to the **"Trend Analysis"** tab to uncover growth rates, margins, and identify cyclicality through clear visualizations.
+For every `(year, period, metric)` cell, Stock-Ward compares all available provider values:
 
-4. **Determine Intrinsic Value** 🧮
-   Use the **"Valuation Models"** tab to run DCF or PE scenarios. Adjust parameters to stress-test your assumptions and find a fair value.
+- Values within the metric tolerance are marked **verified**.
+- Larger differences are marked **conflict** and remain visible in Data Quality.
+- A value reported by only one provider is marked **single source**.
+- When a consensus value must be selected, source priority favors SEC EDGAR, then Nasdaq, then yfinance.
 
----
+Financial values are normalized to billions internally. The database keeps up to 12 years of fetched records, including fiscal-year and single-quarter rows when available.
 
-## ⚙️ Configuration
+## Project structure
 
-- **Proxy Settings**: Need to bypass regional restrictions for Yahoo Finance? Easily configure a proxy URL in the sidebar (default is `http://127.0.0.1:10808`).
+```text
+Stock-Ward/
+├── run.py                 # Cross-platform launcher
+├── run.bat                # Windows launcher
+├── server.py              # FastAPI application and API routes
+├── web/                   # Terminal-style single-page interface
+├── engine/                # Ingestion, providers, valuation, news, grading
+├── modules/               # Financial calculations and legacy analysis modules
+├── data/                  # SQLite databases and local configuration
+├── tests/                 # Automated checks
+├── smoke_test.py          # Live end-to-end health check
+└── build.bat              # Windows packaging script
+```
 
----
+## Testing
 
-## 📄 License
+Run the local automated tests:
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+```bash
+python -m pip install pytest
+python -m pytest tests
+```
+
+Run the live smoke test, which imports the application, checks source connectivity, fetches MSFT data, and exercises core valuation models:
+
+```bash
+python smoke_test.py
+```
+
+The smoke test writes fetched data to the local database and requires internet access.
+
+## Build a Windows application
+
+```powershell
+.\build.bat
+```
+
+The build script installs PyInstaller and creates `dist\Stock-Ward\Stock-Ward.exe`. Distribute the entire `dist\Stock-Ward\` folder, not only the executable. Runtime databases are kept beside the packaged application.
+
+## Privacy and data notes
+
+- Research data remains in local SQLite files unless you explicitly copy or publish them.
+- Live refreshes send ticker requests to the external sources listed above.
+- `data/api_keys.json` is ignored by Git. Current core providers do not require paid API keys; an optional `SEC_USER_AGENT` can identify your SEC requests.
+- Back up the databases in `data/` before migrations or large refreshes if the research history matters to you.
+
+## License
+
+Released under the [MIT License](LICENSE).
