@@ -18,9 +18,11 @@ def detect_data_format(df: pd.DataFrame) -> str:
         return "unknown"
     
     periods = set(df['period'].unique())
-    
-    # 检测是否包含 H1, Q9, FY (累积季度特征)
-    cumulative_markers = {'H1', 'Q9', 'FY'}
+
+    # 检测是否包含 H1, Q9 (累积季度的明确特征)。
+    # 注意：FY 单独出现不能判定为累积——US 单季度数据集也会附带年度 FY 行，
+    # 这些 FY 行会在单季度处理中被忽略 (见 _process_single_quarter_data)。
+    cumulative_markers = {'H1', 'Q9'}
     if periods & cumulative_markers:
         return "cumulative"
     
@@ -80,7 +82,12 @@ def process_financial_data(df_raw):
 def _process_single_quarter_data(df: pd.DataFrame) -> pd.DataFrame:
     """处理单季度格式数据 (US)"""
     df_single = df.copy()
-    
+
+    # 排除年度 FY 行：单季度 TTM/YoY 仅基于 Q1-Q4，
+    # FY 行单独用于年度长周期视图，避免污染滚动求和。
+    if 'period' in df_single.columns:
+        df_single = df_single[df_single['period'] != 'FY'].copy()
+
     # 排序
     df_single['Sort_Key'] = df_single['period'].apply(
         lambda x: int(x[1]) if isinstance(x, str) and len(x) > 1 and x[1].isdigit() else 0

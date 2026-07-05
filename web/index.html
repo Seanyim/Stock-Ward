@@ -1,0 +1,1505 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>STOCK-WARD TERMINAL</title>
+<script src="/web/echarts.min.js"></script>
+<style>
+:root{
+  /* Dark — iOS/macOS frosted glass over a deep gradient */
+  --bg:#0e1320; --panel2:#1b2230; --panelhi:#262f40;
+  --line:rgba(255,255,255,.10); --line2:rgba(255,255,255,.16);
+  --txt:#eaf0f7; --txt2:#aeb8c7; --mut:#7c879a; --label:#7fb6ff;
+  --amber:#4aa8ff; --amber2:#7cc2ff;     /* accent (iOS blue) */
+  --grn:#34d27b; --red:#ff5d63; --cyan:#41d6e6; --mag:#c08bff; --blue:#4aa8ff;
+  --hd:rgba(18,24,38,.82); --sidebar:rgba(15,20,32,.86);
+  --glass:rgba(27,34,51,.84); --glass2:rgba(34,42,62,.74); --panel:rgba(27,34,51,.84);
+  --solid:#1b2233;  /* opaque surface for modals */
+  --appbg:radial-gradient(1200px 700px at 15% -10%, #1d2b52 0%, transparent 55%),
+          radial-gradient(1000px 600px at 110% 10%, #2a1d4d 0%, transparent 50%), #0b1018;
+  --mono:"SF Mono","Consolas","Menlo","DejaVu Sans Mono",monospace;
+  --sans:"SF Pro Display","SF Pro Text","Inter","Segoe UI",system-ui,-apple-system,"Helvetica Neue",Arial,sans-serif;
+  --radius:14px;
+  --fs-base:14px; --fs-table:13.5px; --fs-tab:13px; --fs-h3:12px;
+  --fs-small:11.5px; --fs-metric:21px;
+}
+body[data-theme="light"]{
+  /* Light — bright frosted glass over a soft gradient */
+  --bg:#eef2f8; --panel2:#eaeff6; --panelhi:#e1e8f2;
+  --line:rgba(20,30,50,.10); --line2:rgba(20,30,50,.18);
+  --txt:#10131a; --txt2:#465064; --mut:#7e8aa0; --label:#0a66d6;
+  --amber:#0a84ff; --amber2:#0768d6;      /* accent (iOS blue) */
+  --grn:#16a35a; --red:#e0353c; --cyan:#0e93a8; --mag:#7b4fd1; --blue:#0a84ff;
+  --hd:rgba(255,255,255,.82); --sidebar:rgba(15,20,32,.88);
+  --glass:rgba(255,255,255,.86); --glass2:rgba(248,250,253,.82); --panel:rgba(255,255,255,.86);
+  --solid:#ffffff;  /* opaque surface for modals */
+  --appbg:radial-gradient(1100px 650px at 12% -8%, #d9e6ff 0%, transparent 55%),
+          radial-gradient(900px 600px at 112% 8%, #ecdfff 0%, transparent 52%), #eef2f8;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{height:100%}
+body{
+  background:var(--appbg); background-attachment:fixed; color:var(--txt);
+  font-family:var(--sans);
+  font-size:var(--fs-base); line-height:1.5; overflow:hidden;
+  -webkit-font-smoothing:antialiased;
+}
+/* numeric / data elements stay monospace (Bloomberg feel) */
+table,.px,.metrics .m .d,.kv .v,.inp,.cmdinput input,#clock,.tkr,.badge,.heat td,.gradeletter{font-family:var(--mono)}
+.mut{color:var(--mut)} .label{color:var(--label)} .amber{color:var(--amber)}
+.grn{color:var(--grn)} .red{color:var(--red)} .cyan{color:var(--cyan)} .right{text-align:right}
+.up{color:var(--grn)} .down{color:var(--red)}
+::-webkit-scrollbar{width:9px;height:9px}
+::-webkit-scrollbar-track{background:var(--bg)}
+::-webkit-scrollbar-thumb{background:#1f2937;border-radius:0}
+::-webkit-scrollbar-thumb:hover{background:#2d3a4d}
+
+/* ---------- command bar ---------- */
+#cmdbar{
+  display:flex; align-items:center; gap:12px; height:48px; padding:0 14px;
+  background:var(--hd); border-bottom:1px solid var(--line);
+  backdrop-filter:blur(22px) saturate(160%);-webkit-backdrop-filter:blur(22px) saturate(160%);
+}
+#cmdbar .brand{color:var(--txt);font-weight:800;letter-spacing:.8px;font-size:15px}
+#cmdbar .brand small{color:var(--mut);font-weight:400;letter-spacing:0;font-size:10px}
+.cmdinput{
+  display:flex;align-items:center;gap:6px;background:var(--bg);border:1px solid var(--line2);
+  padding:5px 9px;min-width:260px;border-radius:6px;
+}
+.cmdinput span{color:var(--amber);font-weight:700}
+.cmdinput input{
+  background:transparent;border:none;outline:none;color:var(--amber2);
+  font-family:inherit;font-size:15px;letter-spacing:1px;text-transform:uppercase;width:150px;
+}
+#cmdbar button{
+  background:var(--amber);color:#fff;border:none;font-family:inherit;font-weight:700;
+  padding:5px 13px;cursor:pointer;letter-spacing:.5px;font-size:12.5px;border-radius:5px;
+}
+#cmdbar button.ghost{background:var(--panelhi);color:var(--amber);border:1px solid var(--line2)}
+#cmdbar button.ghost:hover{background:var(--panel2)}
+.statbox{display:flex;flex-direction:column;line-height:1.1;font-size:11px}
+.statbox.clickable{cursor:pointer;padding:4px 8px;border-radius:6px}
+.statbox.clickable:hover{background:var(--panelhi)}
+.statbox b{font-size:13.5px}
+.spacer{flex:1}
+.srcdot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:3px;vertical-align:middle}
+.src-live{background:var(--grn);box-shadow:0 0 5px var(--grn)} .src-nokey{background:var(--amber)}
+.src-down{background:var(--red)} .src-wait{background:var(--line2)}
+#clock{color:var(--cyan);font-size:12.5px}
+
+/* ---------- tabs ---------- */
+#tabs{display:flex;background:var(--hd);border-bottom:1px solid var(--line);height:40px;padding:5px 8px;gap:6px;
+  backdrop-filter:blur(18px) saturate(150%);-webkit-backdrop-filter:blur(18px) saturate(150%)}
+.tab{
+  padding:0 14px;display:flex;align-items:center;gap:6px;cursor:pointer;border-radius:6px;
+  color:var(--txt2);border:1px solid transparent;font-size:var(--fs-tab);letter-spacing:.2px;
+}
+.tab .fk{color:var(--mut);font-size:10px}
+.tab:hover{background:var(--panel);border-color:var(--line)}
+.tab.active{background:var(--amber);color:#fff;font-weight:700}
+.tab.active .fk{color:#fff;opacity:.65}
+
+/* ---------- layout ---------- */
+#main{display:flex;height:calc(100vh - 88px)}
+#rail.collapsed{width:0;opacity:0;border-right:none}
+/* Slack-style dark sidebar (dark in both light & dark themes) */
+#rail{width:236px;background:var(--sidebar);border-right:1px solid rgba(0,0,0,.4);overflow-y:auto;flex-shrink:0;
+  transition:width .18s ease, opacity .18s ease;
+  backdrop-filter:blur(24px) saturate(150%);-webkit-backdrop-filter:blur(24px) saturate(150%);
+  --rtxt:#cdd3dc; --rmut:#7b8694; --rhi:rgba(255,255,255,.06)}
+.railhd{padding:8px 12px;color:#e7ebf0;border-bottom:1px solid rgba(255,255,255,.06);
+  font-size:11px;letter-spacing:1px;position:sticky;top:0;background:var(--sidebar);display:flex;justify-content:space-between;z-index:2;font-weight:700}
+.railhd span{cursor:pointer;color:var(--rmut)}
+.railhd span:hover{color:#fff}
+.cat{padding:6px 12px;color:#9aa4b2;font-size:11px;letter-spacing:.4px;
+  display:flex;justify-content:space-between;align-items:center;margin-top:4px}
+.cat .catacts{opacity:0;display:flex;gap:7px}
+.cat:hover .catacts{opacity:1}
+.cat .catacts span{cursor:pointer;color:var(--rmut);font-size:11px}
+.cat .catacts span:hover{color:#fff}
+.tkr{padding:5px 12px 5px 18px;cursor:pointer;display:flex;justify-content:space-between;align-items:center;color:var(--rtxt);border-radius:5px;margin:0 6px}
+.tkr:hover{background:var(--rhi)}
+.tkr.sel{background:var(--amber);color:#fff;font-weight:700}
+.tkr small{color:var(--rmut)}
+.tkr.sel small{color:#fff;opacity:.8}
+.tkr .tkacts{opacity:0;color:var(--rmut);font-size:12px}
+.tkr:hover .tkacts{opacity:1}
+.tkr .tkacts:hover{color:var(--red)}
+
+#content{flex:1;overflow-y:auto;padding:11px;background:transparent}
+.view{display:none}
+.view.active{display:block}
+
+/* ---------- panels ---------- */
+.grid{display:grid;gap:9px}
+.g2{grid-template-columns:1fr 1fr}
+.g3{grid-template-columns:1fr 1fr 1fr}
+.g23{grid-template-columns:2fr 1fr}
+.panel{background:var(--glass);border:1px solid var(--line);border-radius:var(--radius);overflow:hidden;
+  backdrop-filter:blur(22px) saturate(150%);-webkit-backdrop-filter:blur(22px) saturate(150%);
+  box-shadow:0 8px 28px rgba(0,0,0,.18)}
+.panel>h3{
+  background:var(--glass2);color:var(--amber);font-size:var(--fs-h3);letter-spacing:.8px;
+  padding:7px 11px;border-bottom:1px solid var(--line);font-weight:700;display:flex;justify-content:space-between;align-items:center;gap:8px;
+  font-family:var(--sans)}
+.panel>h3 .sub{color:var(--mut);font-weight:400;letter-spacing:0;font-size:11px}
+.pad{padding:10px}
+.chart{width:100%;height:300px}
+.chart.sm{height:220px}
+
+/* ---------- stats ---------- */
+.kv{display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px dotted var(--line)}
+.kv .k{color:var(--mut)} .kv .v{color:var(--txt);font-weight:600}
+.bigquote{display:flex;align-items:baseline;gap:14px;padding:8px 10px;flex-wrap:wrap}
+.bigquote .px{font-size:34px;font-weight:700;color:var(--amber2)}
+.bigquote .tk{font-size:23px;color:var(--txt);letter-spacing:1px}
+.metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--line)}
+.metrics .m{background:var(--panel);padding:7px 10px}
+.metrics .m .l{color:var(--mut);font-size:10.5px;letter-spacing:.5px}
+.metrics .m .d{font-size:var(--fs-metric);font-weight:700;color:var(--txt)}
+
+/* ---------- tables ---------- */
+table{width:100%;border-collapse:collapse;font-size:var(--fs-table)}
+th,td{padding:4px 9px;text-align:right;border-bottom:1px solid var(--line);white-space:nowrap}
+th{color:var(--label);font-weight:600;background:var(--panel2);position:sticky;top:0}
+td.lbl,th.lbl{text-align:left;color:var(--txt2)}
+tr:hover td{background:var(--panel2)}
+.tblwrap{max-height:440px;overflow:auto}
+.heat td{text-align:center;font-size:12.5px;color:var(--hd);font-weight:600}
+
+/* ---------- badges & bars ---------- */
+.badge{display:inline-block;padding:2px 7px;font-size:11px;font-weight:700;letter-spacing:.5px}
+.b-ok{background:rgba(38,208,124,.16);color:var(--grn)} .b-warn{background:rgba(255,176,0,.16);color:var(--amber)}
+.b-bad{background:rgba(255,90,90,.16);color:var(--red)} .b-single{background:rgba(52,211,235,.14);color:var(--cyan)}
+.gauge{height:20px;background:var(--panel2);position:relative;border:1px solid var(--line)}
+.gauge>div{position:absolute;top:0;bottom:0;left:0}
+.tagrow{display:flex;gap:7px;flex-wrap:wrap;margin-bottom:7px;align-items:center}
+
+.inp{background:var(--bg);border:1px solid var(--line2);color:var(--amber2);font-family:inherit;
+  padding:4px 7px;width:66px;font-size:12.5px}
+.field{display:flex;align-items:center;gap:6px;margin-bottom:5px}
+.field label{color:var(--mut);width:54px;font-size:11px}
+.btn{background:var(--panelhi);color:var(--amber);border:1px solid var(--line2);font-family:inherit;
+  padding:5px 11px;cursor:pointer;letter-spacing:.5px;font-size:12px}
+.btn:hover{background:var(--panel2)}
+.btn.go{background:var(--amber);color:#fff;font-weight:700}
+.btn.sm{padding:3px 8px;font-size:11px}
+.seg{display:inline-flex;border:1px solid var(--line2)}
+.seg button{background:var(--panel);color:var(--txt2);border:none;border-right:1px solid var(--line2);
+  font-family:inherit;font-size:12px;padding:4px 11px;cursor:pointer}
+.seg button:last-child{border-right:none}
+.seg button.on{background:var(--amber);color:#fff;font-weight:700}
+.narr{color:var(--txt2);line-height:1.65;font-size:13px}
+.gradebox{display:flex;align-items:center;gap:16px;padding:6px 4px}
+.gradeletter{font-size:54px;font-weight:800;line-height:1}
+.gradeletter.g-a{color:var(--grn)} .gradeletter.g-b{color:var(--cyan)}
+.gradeletter.g-c{color:var(--amber)} .gradeletter.g-d{color:#ff9a3d} .gradeletter.g-f{color:var(--red)}
+
+/* news */
+.newscol h4{color:var(--amber);font-size:10px;letter-spacing:1px;padding:4px 0;border-bottom:1px solid var(--line);margin-bottom:4px}
+.nitem{padding:4px 0;border-bottom:1px dotted var(--line)}
+.nitem a{color:var(--txt);text-decoration:none}
+.nitem a:hover{color:var(--amber2)}
+.nitem .meta{color:var(--mut);font-size:9px}
+.dot{display:inline-block;width:7px;height:7px;margin-right:5px}
+.dot.p{background:var(--grn)} .dot.n{background:var(--red)} .dot.u{background:var(--mut)}
+
+#toast{position:fixed;bottom:14px;right:14px;background:var(--panelhi);border:1px solid var(--amber);
+  color:var(--txt);padding:9px 15px;font-size:12.5px;display:none;z-index:50;max-width:420px}
+#toast.show{display:block}
+/* modal */
+#modalWrap{position:fixed;inset:0;background:rgba(0,0,0,.55);display:none;z-index:80;
+  align-items:flex-start;justify-content:center;backdrop-filter:blur(2px)}
+#modalWrap.show{display:flex}
+#modalBox{background:var(--solid);border:1px solid var(--line2);border-radius:16px;margin:48px 16px;
+  width:min(880px,94vw);max-height:86vh;overflow:auto;position:relative;box-shadow:0 18px 60px rgba(0,0,0,.5)}
+#modalClose{position:sticky;top:0;float:right;margin:8px;cursor:pointer;color:var(--mut);
+  font-size:16px;z-index:2;width:26px;height:26px;text-align:center;line-height:26px;border-radius:5px}
+#modalClose:hover{background:var(--panelhi);color:var(--txt)}
+#modalBody{padding:18px 22px 24px}
+.clickable{cursor:pointer}
+.clickable:hover{outline:1px solid var(--line2)}
+.info{display:inline-block;width:15px;height:15px;line-height:15px;text-align:center;border-radius:50%;
+  background:var(--panel2);color:var(--mut);font-size:10px;cursor:help;border:1px solid var(--line);margin-left:5px;font-family:var(--sans)}
+.info:hover{background:var(--amber);color:#fff;border-color:var(--amber)}
+.empty{color:var(--mut);padding:34px;text-align:center;letter-spacing:1px;font-size:13px}
+.loading{color:var(--amber);padding:34px;text-align:center;letter-spacing:2px;font-size:13px}
+</style>
+</head>
+<body data-theme="dark">
+
+<div id="cmdbar">
+  <button class="ghost" id="railToggle" title="Toggle watchlist" style="padding:5px 10px;font-size:15px">☰</button>
+  <div class="brand">STOCK-WARD<small> v4 // TERMINAL</small></div>
+  <div class="cmdinput">
+    <span>&gt;</span>
+    <input id="cmd" placeholder="TICKER" autocomplete="off" spellcheck="false">
+  </div>
+  <button id="goBtn">GO</button>
+  <button class="ghost" id="refreshBtn" title="Fetch + cross-verify all sources">⟳ REFRESH</button>
+  <div class="spacer"></div>
+  <div class="statbox"><span class="mut" data-i18n="rf">10Y RF</span><b class="amber" id="rfVal">--</b></div>
+  <div class="statbox clickable" id="sourcesBtn" title="Open source details"><span class="mut" data-i18n="sources">SOURCES</span><b id="srcLights">--</b></div>
+  <button class="ghost" id="langBtn" title="Language">中文</button>
+  <button class="ghost" id="themeBtn" title="Theme">☀</button>
+  <div id="clock">--:--:--</div>
+</div>
+
+<div id="tabs"></div>
+
+<div id="main">
+  <div id="rail">
+    <div class="railhd"><span id="railTitle">WATCHLIST</span>
+      <span style="display:flex;gap:10px">
+        <span id="newCatBtn" title="New category">＋ ⊞</span>
+        <span id="addBtn" title="Add ticker">＋ ADD</span>
+      </span></div>
+    <div id="railBody"><div class="loading">LOADING…</div></div>
+  </div>
+  <div id="content">
+    <div id="v-overview" class="view active"></div>
+    <div id="v-fundamentals" class="view"></div>
+    <div id="v-valuation" class="view"></div>
+    <div id="v-masters" class="view"></div>
+    <div id="v-news" class="view"></div>
+    <div id="v-data" class="view"></div>
+  </div>
+</div>
+
+<div id="toast"></div>
+<div id="modalWrap"><div id="modalBox"><div id="modalClose">✕</div><div id="modalBody"></div></div></div>
+
+<script>
+/* ============================================================ STATE */
+const S = { ticker:null, boot:null, rf:4.5, beta:1.2, erp:5.5,
+            charts:{}, cache:{}, view:'overview',
+            lang:(localStorage.getItem('sw_lang')||'en'),
+            theme:(localStorage.getItem('sw_theme')||'dark'),
+            fFreq:'annual', fYears:8, peView:'pe' };
+const TABS = [
+  ['overview','F1'], ['fundamentals','F2'], ['valuation','F3'],
+  ['masters','F4'], ['news','F5'], ['data','F6'],
+];
+
+/* ---------------- i18n ---------------- */
+const I18N = {
+  en:{ overview:'OVERVIEW', fundamentals:'FUNDAMENTALS', valuation:'VALUATION',
+    masters:'MASTERS', news:'NEWS', data:'DATA QUALITY', rf:'10Y RF', sources:'SOURCES',
+    watchlist:'WATCHLIST', add:'＋ ADD', go:'GO', refresh:'⟳ REFRESH',
+    price_history:'PRICE HISTORY', snapshot:'SNAPSHOT', grade:'OVERALL GRADE & ADVICE',
+    mktcap:'MKT CAP', periods:'PERIODS', fairval:'FAIR VALUE', upside:'UPSIDE',
+    verdict:'VERDICT', conf:'CONF', annual:'ANNUAL', quarterly:'QUARTERLY',
+    statements:'STATEMENTS', revprofit:'REVENUE & PROFIT', margins:'MARGINS',
+    summary:'SUMMARY', window:'WINDOW', wacc_assump:'WACC ASSUMPTIONS', recalc:'RECALC',
+    composite:'COMPOSITE FAIR VALUE', dcf_fwd:'DCF (FORWARD)', dcf_rev:'DCF (REVERSE)',
+    dcf_proj:'DCF 5Y PROJECTION', sens:'SENSITIVITY (EV $B)', pe_an:'P/E ANALYSIS',
+    pe_band:'P/E BANDS', ev:'EV / EBITDA', mc:'MONTE CARLO', prof:'PROFITABILITY',
+    growth:'GROWTH', analyst:'ANALYST CONSENSUS', lens:'INVESTOR LENS SCORES',
+    radar:'STYLE RADAR', qg:'QG-PRO QUALITY-GROWTH', sentiment:'NEWS SENTIMENT & ANALYSIS',
+    pros:'✓ PROS / TAILWINDS', cons:'✗ CONS / RISKS', forward:'→ FORWARD EFFECTS',
+    headlines:'ALL HEADLINES', fetchnews:'FETCH NEWS', xverify:'CROSS-VERIFICATION REPORT',
+    integ:'ANNUAL INTEGRITY', prov:'METRIC PROVENANCE', typeticker:'TYPE A TICKER ABOVE AND PRESS GO',
+    loading:'LOADING', newcat:'＋ category', advice:'Advice',
+    discussion:'RETAIL DISCUSSION (StockTwits)', quality:'TICKER QUALITY', qdims:'QUALITY DIMENSIONS',
+    technical:'TECHNICAL ANALYSIS', valdims:'VALUATION DIMENSIONS', livepx:'LIVE PRICE BASIS' },
+  zh:{ overview:'总览', fundamentals:'基本面', valuation:'估值',
+    masters:'大师评分', news:'新闻', data:'数据质量', rf:'10年无风险', sources:'数据源',
+    watchlist:'自选股', add:'＋ 添加', go:'查询', refresh:'⟳ 刷新',
+    price_history:'价格走势', snapshot:'快照', grade:'综合评级与建议',
+    mktcap:'市值', periods:'报告期', fairval:'公允价值', upside:'上行空间',
+    verdict:'结论', conf:'置信度', annual:'年度', quarterly:'季度',
+    statements:'财务报表', revprofit:'营收与利润', margins:'利润率',
+    summary:'文字总结', window:'时间窗口', wacc_assump:'WACC 假设', recalc:'重新计算',
+    composite:'综合公允价值', dcf_fwd:'DCF（正向）', dcf_rev:'DCF（反向）',
+    dcf_proj:'DCF 五年预测', sens:'敏感性（企业价值 $B）', pe_an:'市盈率分析',
+    pe_band:'市盈率通道', ev:'EV / EBITDA', mc:'蒙特卡洛', prof:'盈利能力',
+    growth:'成长性', analyst:'分析师一致预期', lens:'投资大师评分',
+    radar:'风格雷达', qg:'QG-Pro 质量成长', sentiment:'新闻情绪与分析',
+    pros:'✓ 利好 / 顺风', cons:'✗ 风险 / 担忧', forward:'→ 前瞻影响',
+    headlines:'全部新闻', fetchnews:'获取新闻', xverify:'交叉验证报告',
+    integ:'年度一致性', prov:'指标来源追溯', typeticker:'在上方输入代码并按 查询',
+    loading:'加载中', newcat:'＋ 分组', advice:'建议',
+    discussion:'散户讨论 (StockTwits)', quality:'个股质量', qdims:'质量维度',
+    technical:'技术分析', valdims:'估值多维图', livepx:'最新价格基准' },
+};
+function t(k){ return (I18N[S.lang]&&I18N[S.lang][k]) || (I18N.en[k]||k); }
+function L(en,zh){ return S.lang==='zh'?zh:en; }   // inline bilingual label
+
+const $ = s=>document.querySelector(s);
+const el = (t,c,h)=>{const e=document.createElement(t);if(c)e.className=c;if(h!=null)e.innerHTML=h;return e;};
+
+/* ============================================================ API */
+async function api(path, opts){
+  const r = await fetch(path, opts);
+  if(!r.ok){ throw new Error((await r.text()).slice(0,200)); }
+  return r.json();
+}
+const post = (p,b={})=>api(p,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(b)});
+
+function toast(msg,ms=3200){ const t=$('#toast'); t.textContent=msg; t.classList.add('show');
+  clearTimeout(t._t); t._t=setTimeout(()=>t.classList.remove('show'),ms); }
+
+function openModal(html){ $('#modalBody').innerHTML=html; $('#modalWrap').classList.add('show'); }
+function closeModal(){ $('#modalWrap').classList.remove('show'); }
+
+// ---- valuation calc-steps modal (step-by-step with plugged-in numbers) ----
+function _stepHtml(title,sub,steps){
+  return `<div style="font-size:19px;font-weight:800;margin-bottom:2px">${title}</div>
+    <div class="mut" style="margin-bottom:14px">${sub||''}</div>`+
+    steps.map((s,i)=>`<div style="display:flex;gap:12px;margin-bottom:12px">
+      <div style="flex-shrink:0;width:24px;height:24px;border-radius:50%;background:var(--amber);color:#fff;text-align:center;line-height:24px;font-weight:700;font-size:12px">${i+1}</div>
+      <div style="flex:1"><div style="font-weight:600">${s[0]}</div>
+        <div style="font-family:var(--mono);font-size:12.5px;color:var(--txt2);margin:2px 0">${s[1]}</div>
+        ${s[2]?`<div style="color:var(--amber)">= <b>${s[2]}</b></div>`:''}</div></div>`).join('')+
+    `<div class="mut" style="margin-top:10px;font-size:11px">${L('Figures use cross-verified FY + quarterly-TTM financials and the latest market data.','数据来自交叉验证的年报 + 季报TTM 财务与最新行情。')}</div>`;
+}
+function openValModal(kind){
+  const d=S._valdata; if(!d){ return; }
+  const dash=d.dash||{}, fwd=(d.dcf||{}).forward||{}, rev=(d.dcf||{}).reverse||{}, pe=d.pe||{}, ev=d.ev||{};
+  const w=(d.dcf||{}).wacc||{};
+  let html='';
+  if(kind==='dcf'){
+    html=_stepHtml(t('dcf_fwd'),L('Discounted cash flow — forward','现金流折现 — 正向'),[
+      [L('Base free cash flow','基准自由现金流'),`${L('FCF base','基数')} = ${bn(fwd.base_fcf)} (${fwd.fcf_source||'—'})`,''],
+      [L('Project 5 years at the growth rate','按增速预测未来5年'),`g = ${pct(fwd.growth_pct)} → ${(fwd.flows||[]).map(x=>fmt(x,1)).join(', ')} B`,''],
+      [L('Discount each year at WACC','按WACC逐年折现'),`WACC = ${fmt((w.wacc||0)*100,2)}% → PV = ${(fwd.pvs||[]).map(x=>fmt(x,1)).join(', ')} B`,`Σ ${bn(fwd.stage1_pv)}`],
+      [L('Terminal value (Gordon)','永续价值（戈登模型）'),`FCF₅×(1+${pct(fwd.perp_pct)}) / (WACC − g∞) → PV`,bn(fwd.terminal_pv)],
+      [L('Enterprise value','企业价值'),`${L('stage-1 PV','一阶段现值')} + ${L('terminal PV','永续现值')}`,bn(fwd.enterprise_value)],
+      [L('Equity bridge','股权桥'),`EV − ${L('net debt','净负债')} ${bn(fwd.net_debt)}`,bn(fwd.equity_value)],
+      [L('Fair value per share','每股公允价值'),`${L('equity','股权')} × 1e9 ÷ ${L('shares','股数')}`,fmt(fwd.per_share,2)],
+    ]);
+  } else if(kind==='dcf_rev'){
+    html=_stepHtml(t('dcf_rev'),L('What growth does today’s price already assume?','当前价格已隐含多少增速？'),[
+      [L('Target enterprise value','目标企业价值'),`${L('market cap','市值')} ${bn(rev.market_cap_b)} + ${L('net debt','净负债')} ${bn(rev.net_debt_b)}`,bn(rev.target_ev_b)],
+      [L('Solve implied growth','反解隐含增速'),L('Find g so DCF(base FCF, g, WACC) = target EV','求解 g 使 DCF(基准FCF, g, WACC)=目标EV'),pct(rev.implied_growth_pct)],
+      [L('Interpretation','解读'),L('If you expect higher growth than this, the stock is cheap; lower, expensive.','若你预期增速高于此值则偏便宜，反之偏贵。'),''],
+    ]);
+  } else if(kind==='pe'){
+    html=_stepHtml(t('pe_an'),L('Price / earnings & Fisher fair PE','市盈率与费雪合理PE'),[
+      [L('PE (TTM)','市盈率TTM'),`${L('price','价格')} ${fmt(pe.current_price,2)} ÷ EPS(TTM) ${fmt(pe.eps_ttm,2)}`,fmt(pe.pe_ttm,1)],
+      [L('Fisher fair PE','费雪合理PE'),`${L('growth','增速')} ${fmt(pe.growth_pct,1)}% + 2 × Rf ${fmt(pe.rf_pct,1)}%`,fmt(pe.fisher_fair_pe,1)],
+      [L('Fair price','合理价'),`${L('fair PE','合理PE')} × EPS = ${fmt(pe.fisher_fair_pe,1)} × ${fmt(pe.eps_ttm,2)}`,fmt(pe.fair_prices&&pe.fair_prices.fisher,2)],
+      [L('Historical percentile','历史分位'),L('Current PE vs the stock own multi-year PE distribution','当前PE相对自身多年PE分布'),fmt(pe.percentile_rank,0)+'%'],
+    ]);
+  } else if(kind==='ev'){
+    html=_stepHtml(t('ev'),'EV / EBITDA',[
+      [L('Enterprise value','企业价值'),`${L('market cap','市值')} + ${L('net debt','净负债')}`,bn(ev.ev_b)],
+      [L('EBITDA (TTM)','EBITDA(TTM)'),`${ev.ebitda_source||'—'}`,bn(ev.ebitda_b)],
+      [L('Multiple','倍数'),`EV ÷ EBITDA = ${bn(ev.ev_b)} ÷ ${bn(ev.ebitda_b)}`,fmt(ev.multiple,1)+'x'],
+      [L('Industry multiple','行业倍数'),`${ev.sector||''}`,fmt(ev.industry_multiple,1)+'x'],
+      [L('Implied value vs current','隐含价值对比现价'),`${L('industry x × EBITDA − net debt','行业倍数 × EBITDA − 净负债')}`,pct(ev.implied_vs_current_pct)],
+    ]);
+  } else if(kind==='composite'){
+    const wt=dash.weights||{};
+    html=_stepHtml(t('composite'),L('Weighted blend of all models','所有模型加权汇总'),[
+      [L('Per-model fair values','各模型公允价'),L('DCF, PE band, PEG, EV/EBITDA (median within each model)','DCF、PE通道、PEG、EV/EBITDA（每个模型取中位数）'),''],
+      [L('Weights','权重'),Object.entries(wt).map(([k,v])=>`${k} ${(v*100).toFixed(0)}%`).join(' · ')||'PE 25 · PEG 20 · DCF 35 · EV 20',''],
+      [L('Intrinsic value','内在价值'),L('weighted average of model fair values','模型公允价的加权平均'),fmt(dash.intrinsic_value,2)],
+      [L('Margin of safety','安全边际'),`${L('intrinsic','内在')} ${fmt(dash.intrinsic_value,2)} ÷ ${L('price','现价')} ${fmt(dash.current_price,2)} − 1`,pct(dash.margin_pct)],
+      [L('Confidence','置信度'),L('based on agreement (dispersion) across models','基于各模型一致性（离散度）'),(dash.confidence||'—').toUpperCase()],
+    ]);
+  }
+  openModal(html);
+}
+
+// per-dimension explanation of HOW each score is computed
+const DIM_DOC={
+  valuation:['Valuation','估值','Margin of safety from the composite fair value (DCF + PE + PEG + EV/EBITDA), mapped −30%→0 to +30%→100.','综合公允价值（DCF+PE+PEG+EV/EBITDA）相对现价的安全边际，−30%→0、+30%→100 线性映射。'],
+  growth:['Growth','成长','Median of revenue / net-income / EPS / FCF CAGR (quarterly TTM based), −10%→0 to +30%→100.','营收/净利/EPS/自由现金流 复合增速（基于季度 TTM）的中位数，−10%→0、+30%→100。'],
+  financial:['Financial health','财务健康','Weighted ROE, net margin, FCF/revenue and debt/equity of the latest TTM.','最新 TTM 的 ROE、净利率、自由现金流/营收、负债权益比 加权。'],
+  masters:['Investor lens','大师评分','Average of the available master-investor scorecards (Buffett, Munger, Lynch …).','可用投资大师评分（巴菲特、芒格、林奇…）的平均。'],
+  quality:['Quality (QG-Pro)','质量(QG-Pro)','Quality-growth model: growth quality, downside, drawdown risk, cash-flow quality.','质量成长模型：成长质量、下行、回撤风险、现金流质量。'],
+  technical:['Technical','技术','Trend (price vs SMA50/200, golden cross), momentum (RSI, MACD, 3m return), 52-week position — on the newest price.','趋势（价格对 SMA50/200、金叉）、动量（RSI、MACD、3月涨幅）、52周位置——基于最新价。'],
+  news:['News sentiment','新闻情绪','Bull/bear balance of recent headlines + influence-weighted social discussion.','近期新闻多空平衡 + 按影响力加权的社交讨论。'],
+};
+async function openGradeModal(){
+  const tk=S.ticker; if(!tk) return;
+  openModal(`<div class="loading">${t('loading')}…</div>`);
+  const [gr,tc,dash]=await Promise.all([
+    get('grade',`/api/company/${tk}/grade?rf=${S.rf}&beta=${S.beta}&erp=${S.erp}`),
+    get('tech',`/api/company/${tk}/technical`).catch(()=>({})),
+    get('dash',`/api/company/${tk}/dashboard?rf=${S.rf}&beta=${S.beta}&erp=${S.erp}`).catch(()=>({})),
+  ]);
+  const c=gr.components||{}; const g0=(gr.grade||'?')[0].toLowerCase();
+  let dimRows='';
+  Object.keys(DIM_DOC).forEach(k=>{ if(c[k]==null) return; const d=DIM_DOC[k];
+    const val=c[k], col=val>=70?'grn':val>=50?'amber':'red';
+    dimRows+=`<tr><td class="lbl">${S.lang==='zh'?d[1]:d[0]}</td>
+      <td class="${col}" style="font-weight:700">${fmt(val,0)}</td>
+      <td><div class="gauge" style="height:9px;width:120px"><div style="width:${Math.max(0,Math.min(100,val))}%;background:var(--${col})"></div></div></td>
+      <td class="lbl mut" style="white-space:normal;max-width:380px;font-family:var(--sans)">${S.lang==='zh'?d[3]:d[2]}</td></tr>`;
+  });
+  const fin=gr.financial_factors||{};
+  const finStr=Object.entries(fin).map(([k,v])=>`${k} ${fmt(v,1)}`).join(' · ')||'—';
+  const techStr = tc && !tc.error ? `${S.lang==='zh'?tc.trend_zh:tc.trend_en} · RSI ${fmt(tc.rsi14,0)} · ${L('52w',('52周'))} ${fmt(tc.pos52_pct,0)}% · ${L('1y',('1年'))} ${pct(tc.ret_1y)}` : '—';
+  openModal(`
+    <div style="display:flex;align-items:center;gap:18px;margin-bottom:14px">
+      <div class="gradeletter g-${g0}" style="font-size:60px">${gr.grade||'—'}</div>
+      <div><div style="font-size:20px;font-weight:700">${tk} · ${fmt(gr.score,1)}/100</div>
+        <div class="mut">${L('Composite quality grade across 7 dimensions','跨 7 个维度的综合质量评级')}</div></div>
+    </div>
+    <div class="narr" style="margin-bottom:16px">${S.lang==='zh'?gr.advice_zh:gr.advice_en}</div>
+    <h3 style="background:var(--panel2);color:var(--amber);padding:7px 10px;border-radius:6px;font-size:12px;letter-spacing:.5px;margin-bottom:6px">${L('DIMENSION BREAKDOWN — how each score is computed','维度拆解 — 各分数如何计算')}</h3>
+    <table><thead><tr><th class="lbl">${L('Dimension','维度')}</th><th>${L('Score','分数')}</th><th class="lbl"></th><th class="lbl">${L('Method','计算方式')}</th></tr></thead>
+      <tbody>${dimRows}</tbody></table>
+    <div style="margin-top:14px;display:grid;grid-template-columns:1fr 1fr;gap:10px">
+      <div class="panel"><h3>${L('Valuation','估值')}</h3><div class="pad">
+        <div class="kv"><span class="k">${L('Intrinsic value','内在价值')}</span><span class="v">${fmt(dash.intrinsic_value,2)}</span></div>
+        <div class="kv"><span class="k">${L('Margin of safety','安全边际')}</span><span class="v ${cls(dash.margin_pct)}">${pct(dash.margin_pct)}</span></div>
+        <div class="kv"><span class="k">${L('Confidence','置信度')}</span><span class="v">${(dash.confidence||'—').toUpperCase()}</span></div></div></div>
+      <div class="panel"><h3>${L('Financial / Technical','财务/技术')}</h3><div class="pad">
+        <div class="kv"><span class="k">${L('Financial health','财务健康')}</span><span class="v">${fmt(gr.financial_health,0)}</span></div>
+        <div class="kv"><span class="k">${L('Factors','指标')}</span><span class="v" style="font-size:11px">${finStr}</span></div>
+        <div class="kv"><span class="k">${L('Technical','技术')}</span><span class="v" style="font-size:11px">${techStr}</span></div></div></div>
+    </div>
+    <div class="mut" style="margin-top:12px;font-size:11px">${L('Quantitative composite for reference only — not investment advice.','量化综合参考，非投资建议。')}</div>
+  `);
+}
+
+/* number formatting */
+function fmt(v,d=2){ if(v==null||isNaN(v))return '—'; return Number(v).toLocaleString('en-US',{minimumFractionDigits:d,maximumFractionDigits:d}); }
+function pct(v,d=1){ if(v==null||isNaN(v))return '—'; return (v>=0?'+':'')+Number(v).toFixed(d)+'%'; }
+function big(v){ if(v==null||isNaN(v))return '—'; const a=Math.abs(v);
+  if(a>=1e12)return (v/1e12).toFixed(2)+'T'; if(a>=1e9)return (v/1e9).toFixed(2)+'B';
+  if(a>=1e6)return (v/1e6).toFixed(2)+'M'; return fmt(v,0); }
+function bn(v){ return v==null||isNaN(v)? '—' : fmt(v,2)+'B'; }
+function cls(v){ return v>0?'up':v<0?'down':''; }
+
+/* ============================================================ BOOT */
+async function boot(){
+  document.body.dataset.theme=S.theme;
+  $('#themeBtn').textContent = S.theme==='dark'?'☀':'☾';
+  $('#langBtn').textContent = S.lang==='en'?'中文':'EN';
+  renderTabs();
+  try{
+    S.boot = await api('/api/bootstrap');
+    S.rf = S.boot.rf!=null ? +(S.boot.rf*100).toFixed(2) : 4.5;
+    $('#rfVal').textContent = S.rf.toFixed(2)+'%';
+    renderRail(S.boot.categories||[]);
+    refreshSources();  // live connectivity check (async)
+  }catch(e){ toast('Bootstrap failed: '+e.message); }
+  clock(); setInterval(clock,1000);
+  bindKeys();
+  applyI18n();
+}
+function clock(){ $('#clock').textContent = new Date().toTimeString().slice(0,8); }
+
+const SRC_CLS={live:'src-live',nokey:'src-nokey',down:'src-down'};
+const SRC_TXT={ en:{live:'connected',nokey:'needs API key',down:'unreachable'},
+                zh:{live:'已连接',nokey:'需要密钥',down:'无法连接'} };
+function renderSources(provs){
+  const tx=SRC_TXT[S.lang]||SRC_TXT.en;
+  const live=provs.filter(p=>p.status==='live').length;
+  $('#srcLights').innerHTML = provs.map(p=>
+    `<span class="srcdot ${SRC_CLS[p.status]||'src-wait'}" title="${p.name} (${p.kind||''}) — ${tx[p.status]||p.status}"></span>`
+  ).join('') + ` <span class="mut" style="font-size:10px">${live}/${provs.length}</span>`;
+}
+async function refreshSources(){
+  $('#srcLights').innerHTML='<span class="srcdot src-wait"></span>';
+  try{ const st=await api('/api/providers'); S._sources=st; renderSources(st); }
+  catch(e){ /* leave as-is */ }
+}
+
+function renderTabs(){
+  $('#tabs').innerHTML='';
+  TABS.forEach(([id,fk])=>{
+    const tab=el('div','tab'+(id===S.view?' active':''),`<span class="fk">${fk}</span>${t(id)}`);
+    tab.onclick=()=>switchTab(id); tab.dataset.id=id; $('#tabs').appendChild(tab);
+  });
+}
+function applyI18n(){
+  document.documentElement.lang = S.lang==='zh'?'zh':'en';
+  document.querySelectorAll('[data-i18n]').forEach(e=>{ e.textContent=t(e.dataset.i18n); });
+  $('#goBtn').textContent=t('go'); $('#refreshBtn').textContent=t('refresh');
+  $('#langBtn').textContent = S.lang==='en'?'中文':'EN';
+  $('#railTitle').textContent=t('watchlist'); $('#addBtn').textContent=t('add');
+  if(S._sources) renderSources(S._sources);
+  renderTabs();
+  renderView(S.view);
+}
+function setTheme(th){
+  S.theme=th; document.body.dataset.theme=th; localStorage.setItem('sw_theme',th);
+  $('#themeBtn').textContent = th==='dark'?'☀':'☾';
+  // recolor existing charts
+  Object.keys(S.charts).forEach(id=>{ const c=S.charts[id]; if(c){ c.dispose(); delete S.charts[id]; } });
+  if(S.ticker) renderView(S.view);
+}
+function toggleLang(){ S.lang = S.lang==='en'?'zh':'en'; localStorage.setItem('sw_lang',S.lang); applyI18n(); }
+function switchTab(id){
+  S.view=id; renderTabs();
+  document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+  $('#v-'+id).classList.add('active');
+  if(S.ticker) renderView(id);
+}
+
+function renderRail(cats){
+  const b=$('#railBody'); b.innerHTML='';
+  S._cats = cats;
+  if(!cats.length){ b.innerHTML=`<div class="empty">${S.lang==='zh'?'暂无自选股，点击 ＋ 添加':'No tickers — click ＋ ADD'}</div>`; return; }
+  cats.forEach(c=>{
+    const editable = c.id>0;  // -1 == ungrouped pseudo-category
+    const cat=el('div','cat');
+    cat.innerHTML=`<span>${c.name} <span class="mut" style="font-size:10px">${(c.companies||[]).length}</span></span>`+
+      (editable?`<span class="catacts">
+        <span data-act="rencat" data-id="${c.id}" title="Rename">✎</span>
+        <span data-act="delcat" data-id="${c.id}" data-name="${c.name}" title="Delete group">✕</span></span>`:'');
+    b.appendChild(cat);
+    (c.companies||[]).forEach(co=>{
+      const row=el('div','tkr'+(co.ticker===S.ticker?' sel':''),
+        `<span>${co.ticker} <small>${(co.name||'').slice(0,12)}</small></span>
+         <span class="tkacts" style="display:flex;gap:7px">
+           <span data-act="movetk" data-tk="${co.ticker}" title="Move to group">⇄</span>
+           <span data-act="deltk" data-tk="${co.ticker}" title="Remove">✕</span></span>`);
+      row.dataset.tk=co.ticker;
+      row.querySelector('span:first-child').onclick=()=>load(co.ticker);
+      b.appendChild(row);
+    });
+  });
+  // delegate edit actions
+  b.querySelectorAll('[data-act]').forEach(x=>{
+    x.onclick=(e)=>{ e.stopPropagation(); const a=x.dataset.act;
+      if(a==='deltk') removeTicker(x.dataset.tk);
+      else if(a==='movetk') moveTicker(x.dataset.tk);
+      else if(a==='delcat') deleteCategory(x.dataset.id,x.dataset.name);
+      else if(a==='rencat') renameCategory(x.dataset.id);
+    };
+  });
+}
+
+async function reloadRail(){ S.boot=await api('/api/bootstrap'); renderRail(S.boot.categories||[]); }
+
+async function removeTicker(tk){
+  if(!confirm((S.lang==='zh'?'从自选股中删除 ':'Remove ')+tk+(S.lang==='zh'?' ？（含其本地数据）':' and its local data?'))) return;
+  try{ await api('/api/companies/'+tk,{method:'DELETE'}); if(S.ticker===tk) S.ticker=null;
+    await reloadRail(); toast(tk+(S.lang==='zh'?' 已删除':' removed')); }
+  catch(e){ toast('Remove failed: '+e.message); }
+}
+async function newCategory(){
+  const name=prompt(S.lang==='zh'?'新建分组名称：':'New group name:'); if(!name) return;
+  try{ await post('/api/categories',{name}); await reloadRail(); }
+  catch(e){ toast('Create failed: '+e.message); }
+}
+async function renameCategory(id){
+  const name=prompt(S.lang==='zh'?'重命名分组：':'Rename group:'); if(!name) return;
+  try{ await api('/api/categories/'+id,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({name})});
+    await reloadRail(); }catch(e){ toast('Rename failed: '+e.message); }
+}
+async function deleteCategory(id,name){
+  if(!confirm((S.lang==='zh'?'删除分组 ':'Delete group ')+name+(S.lang==='zh'?' ？（不删除其中股票）':' (tickers are kept)?'))) return;
+  try{ await api('/api/categories/'+id,{method:'DELETE'}); await reloadRail(); }
+  catch(e){ toast('Delete failed: '+e.message); }
+}
+async function moveTicker(tk){
+  const cats=(S._cats||[]).filter(c=>c.id>0);
+  if(!cats.length){ toast(S.lang==='zh'?'先创建分组':'Create a group first'); return; }
+  const menu=cats.map((c,i)=>`${i+1}. ${c.name}`).join('\n');
+  const pick=prompt((S.lang==='zh'?'移动 ':'Move ')+tk+(S.lang==='zh'?' 到分组编号：\n':' to group #:\n')+menu);
+  const idx=parseInt(pick,10)-1; if(isNaN(idx)||!cats[idx]) return;
+  try{ await post('/api/categories/'+cats[idx].id+'/members',{ticker:tk}); await reloadRail();
+    toast(tk+' → '+cats[idx].name); }catch(e){ toast('Move failed: '+e.message); }
+}
+
+/* ============================================================ LOAD TICKER */
+async function load(tk){
+  tk=(tk||'').toUpperCase().trim(); if(!tk) return;
+  S.ticker=tk; S.cache={};
+  document.querySelectorAll('.tkr').forEach(x=>x.classList.toggle('sel',x.dataset.tk===tk));
+  $('#cmd').value=tk;
+  renderView(S.view);
+}
+
+async function refresh(){
+  if(!S.ticker){ toast('Load a ticker first.'); return; }
+  toast('Fetching + cross-verifying '+S.ticker+' across all sources… (may take 10–30s)',8000);
+  $('#refreshBtn').disabled=true;
+  try{
+    const r = await post(`/api/company/${S.ticker}/refresh`);
+    const ig=r.ingest||{};
+    toast(`${S.ticker}: ${ig.records_written||0} periods · ${ig.verified||0} verified · ${ig.conflicts||0} conflicts · sources: ${(ig.sources_used||[]).join(', ')||'none'}`,7000);
+    S.cache={}; renderView(S.view);
+    if(!S.boot.tickers || !S.boot.tickers.includes(S.ticker)){
+      S.boot = await api('/api/bootstrap'); renderRail(S.boot.categories||[]);
+    }
+  }catch(e){ toast('Refresh failed: '+e.message); }
+  $('#refreshBtn').disabled=false;
+}
+
+/* cached getter */
+async function get(key, path){
+  if(S.cache[key]) return S.cache[key];
+  const d = await api(path); S.cache[key]=d; return d;
+}
+
+/* ============================================================ RENDER DISPATCH */
+function renderView(id){
+  const v=$('#v-'+id);
+  if(!S.ticker){ v.innerHTML=`<div class="empty">${t('typeticker')}</div>`; return; }
+  v.innerHTML=`<div class="loading">${t('loading')} ${S.ticker}…</div>`;
+  ({overview:vOverview,fundamentals:vFundamentals,valuation:vValuation,
+    masters:vMasters,news:vNews,data:vData}[id])(v).catch(e=>{
+    v.innerHTML=`<div class="empty">ERROR: ${e.message}<br><br>${S.lang==='zh'?('按 ⟳ 刷新 获取 '+S.ticker+' 的数据。'):('Try ⟳ REFRESH to fetch data for '+S.ticker+'.')}</div>`;
+  });
+}
+
+/* ---------------------------------------------------------- OVERVIEW */
+async function vOverview(v){
+  const tk=S.ticker;
+  const [ov, dash, quote] = await Promise.all([
+    get('ov','/api/company/'+tk),
+    get('dash',`/api/company/${tk}/dashboard?rf=${S.rf}&beta=${S.beta}&erp=${S.erp}`).catch(()=>null),
+    get('quote','/api/company/'+tk+'/quote').catch(()=>null),
+  ]);
+  const m=ov.meta||{};
+  const live = quote && quote.price!=null;
+  const px = live ? quote.price : ov.current_price;
+  let upside=null, verdict='—', conf='—', fairv=null;
+  if(dash && dash.intrinsic_value){ fairv=dash.intrinsic_value; upside=dash.margin_pct;
+    conf=(dash.confidence||'—').toUpperCase();
+    verdict = upside==null?'—':upside>15?'UNDERVALUED':upside<-15?'OVERVALUED':'FAIR'; }
+  v.innerHTML='';
+  // header quote
+  const head=el('div','panel');
+  const chgCls = live && quote.change_pct!=null ? cls(quote.change_pct) : '';
+  const chgStr = live && quote.change_pct!=null ? `<span class="${chgCls}" style="font-size:16px">${pct(quote.change_pct)}</span>` : '';
+  const asof = live && quote.as_of ? `<span class="mut" style="font-size:11px">${S.lang==='zh'?'实时 · 截至':'live · as of'} ${quote.as_of}</span>`
+             : `<span class="mut" style="font-size:11px">${S.lang==='zh'?'最近收盘（按 ⟳ 刷新更新）':'last close — press ⟳ REFRESH to update'}</span>`;
+  head.innerHTML=`<div class="bigquote">
+      <span class="tk">${tk}</span><span class="px">${fmt(px,2)}</span>${chgStr}
+      <span class="mut">${m.name||''} · ${m.sector||'—'} / ${m.industry||'—'} · ${m.region||''}</span></div>
+      <div style="padding:0 10px 6px">${asof}</div>`;
+  const met=el('div','metrics');
+  const items=[['MKT CAP',big(ov.market_cap)],['P/E TTM',fmt(ov.pe_ttm,1)],
+    ['EPS TTM',fmt(ov.eps_ttm,2)],['PERIODS',ov.record_count||0]];
+  if(fairv!=null){ items.push(['FAIR VALUE',fmt(fairv,2)],
+    ['UPSIDE',pct(upside)],['VERDICT',verdict],['CONF',conf]); }
+  met.innerHTML=items.map(([l,d])=>`<div class="m"><div class="l">${l}</div><div class="d">${d}</div></div>`).join('');
+  head.appendChild(met);
+  v.appendChild(head);
+
+  // ---- overall grade + advice + multi-dimensional quality radar ----
+  const gp=el('div','panel clickable'); gp.style.marginTop='9px'; gp.title=L('Click for full analysis','点击查看完整分析');
+  gp.innerHTML=`<h3>${t('grade')} <span class="sub">${t('quality')} · ${L('click for details ▸','点击查看详情 ▸')}</span></h3>
+    <div class="pad"><div id="ovGrade"><div class="mut">…</div></div></div>`;
+  gp.onclick=(e)=>{ if(e.target.tagName!=='A') openGradeModal(); };
+  v.appendChild(gp);
+  get('grade',`/api/company/${tk}/grade?rf=${S.rf}&beta=${S.beta}&erp=${S.erp}`).then(gr=>{
+    const g0=(gr.grade||'?')[0].toLowerCase();
+    const c=gr.components||{};
+    document.getElementById('ovGrade').innerHTML=
+      `<div style="display:grid;grid-template-columns:170px 1fr 280px;gap:16px;align-items:center">
+        <div style="text-align:center">
+          <div class="gradeletter g-${g0}">${gr.grade||'—'}</div>
+          <div id="gGauge" style="height:96px"></div>
+        </div>
+        <div>
+          <div style="font-size:12px;color:var(--mut);margin-bottom:4px;letter-spacing:.5px">${t('advice')}</div>
+          <div class="narr">${S.lang==='zh'?gr.advice_zh:gr.advice_en}</div>
+        </div>
+        <div><div style="font-size:11px;color:var(--mut);text-align:center;letter-spacing:.5px">${t('qdims')}</div>
+          <div id="gRadar" style="height:210px"></div></div>
+      </div>`;
+    const ax=axisColors();
+    // semicircle score gauge
+    if(gr.score!=null) drawChart('gGauge',{series:[{type:'gauge',startAngle:200,endAngle:-20,min:0,max:100,
+      radius:'100%',center:['50%','62%'],progress:{show:true,width:9,itemStyle:{color:ax.amber}},
+      axisLine:{lineStyle:{width:9,color:[[1,ax.gl]]}},axisTick:{show:false},splitLine:{show:false},
+      axisLabel:{show:false},pointer:{show:false},
+      detail:{valueAnimation:true,fontSize:22,offsetCenter:[0,'-5%'],color:ax.tx,formatter:'{value}'},
+      data:[{value:+fmt(gr.score,0)}]}]});
+    // multi-dimensional radar (多维图)
+    const dims=[['valuation','Valuation','估值'],['growth','Growth','成长'],
+      ['financial','Financial','财务'],['masters','Masters','大师'],
+      ['quality','Quality','质量'],['technical','Technical','技术'],['news','News','情绪']]
+      .filter(([k])=>c[k]!=null);
+    drawChart('gRadar',{radar:{indicator:dims.map(([k,en,zh])=>({name:S.lang==='zh'?zh:en,max:100})),
+        radius:'66%',axisName:{color:ax.tx,fontSize:11},splitLine:{lineStyle:{color:ax.gl}},
+        splitArea:{areaStyle:{color:['transparent']}},axisLine:{lineStyle:{color:ax.gl}}},
+      series:[{type:'radar',data:[{value:dims.map(([k])=>c[k]),
+        areaStyle:{color:'rgba(217,119,87,0.22)'},lineStyle:{color:ax.amber,width:2},itemStyle:{color:ax.amber}}]}]});
+  }).catch(()=>{ document.getElementById('ovGrade').innerHTML=
+      `<div class="mut">${S.lang==='zh'?'按 ⟳ 刷新 获取数据后生成评级':'Press ⟳ REFRESH to fetch data, then a grade is generated.'}</div>`; });
+
+  const g=el('div','grid g23'); g.style.marginTop='9px';
+  g.innerHTML=`<div class="panel"><h3>${t('price_history')} <span class="sub">close</span></h3><div id="ovChart" class="chart"></div></div>
+    <div class="panel"><h3>${t('snapshot')}</h3><div class="pad" id="ovKV"></div></div>`;
+  v.appendChild(g);
+
+  // ---- technical analysis (newest price) ----
+  const tp=el('div','panel'); tp.style.marginTop='9px';
+  tp.innerHTML=`<h3>${L('TECHNICAL ANALYSIS','技术分析')} <span class="sub" id="techAsof"></span></h3>
+    <div class="pad"><div class="grid g23"><div id="techKV"></div><div id="techChart" class="chart sm"></div></div></div>`;
+  v.appendChild(tp);
+  get('tech','/api/company/'+tk+'/technical').then(tc=>{
+    if(tc.error){ document.getElementById('techKV').innerHTML=`<div class="mut">${L('Live price data unavailable.','暂无实时价格数据。')}</div>`; return; }
+    document.getElementById('techAsof').textContent=`${L('as of','截至')} ${tc.as_of}`;
+    const tcol=tc.score>=70?'grn':tc.score>=45?'amber':'red';
+    const rows=[
+      [L('Trend','趋势'),`<span class="${tcol}">${S.lang==='zh'?tc.trend_zh:tc.trend_en} · ${fmt(tc.score,0)}</span>`],
+      [L('Last price','最新价'),fmt(tc.price,2)],
+      ['SMA 20 / 50 / 200',`${fmt(tc.sma20,1)} / ${fmt(tc.sma50,1)} / ${fmt(tc.sma200,1)}`],
+      [L('RSI (14)','RSI(14)'),fmt(tc.rsi14,1)],
+      ['MACD',`${fmt(tc.macd,2)} (${L('hist','柱')} ${fmt(tc.macd_hist,2)})`],
+      [L('52w range','52周区间'),`${fmt(tc.lo52,1)} – ${fmt(tc.hi52,1)} (${fmt(tc.pos52_pct,0)}%)`],
+      [L('Return 1m/3m/1y','涨跌 1月/3月/1年'),`${pct(tc.ret_1m)} / ${pct(tc.ret_3m)} / ${pct(tc.ret_1y)}`],
+      [L('Volatility (ann.)','年化波动率'),pct(tc.volatility_pct)]];
+    document.getElementById('techKV').innerHTML=rows.map(([k,val])=>`<div class="kv"><span class="k">${k}</span><span class="v">${val}</span></div>`).join('');
+    if(tc.series && tc.series.dates){ const axc=axisColors();
+      const sma=(n)=>{const c=tc.series.close,o=[];for(let i=0;i<c.length;i++){if(i<n-1){o.push(null);continue;}let s=0;for(let j=0;j<n;j++)s+=c[i-j];o.push(+(s/n).toFixed(2));}return o;};
+      drawChart('techChart',{grid:{left:46,right:10,top:24,bottom:20},legend:{textStyle:{color:axc.tx,fontSize:10},top:0},
+        xAxis:{type:'category',data:tc.series.dates,axisLabel:{color:axc.ax,fontSize:9}},
+        yAxis:{type:'value',scale:true,axisLabel:{color:axc.ax,fontSize:9},splitLine:{lineStyle:{color:axc.gl}}},
+        tooltip:{trigger:'axis',formatter:tipFmt('$')},
+        series:[{name:L('Close','收盘'),type:'line',data:tc.series.close,showSymbol:false,lineStyle:{color:axc.amber,width:1.5}},
+          {name:'SMA50',type:'line',data:sma(50),showSymbol:false,lineStyle:{color:cssVar('--cyan'),width:1,type:'dashed'}},
+          {name:'SMA200',type:'line',data:sma(200),showSymbol:false,lineStyle:{color:cssVar('--mag'),width:1,type:'dashed'}}]});
+    }
+  }).catch(()=>{});
+
+  const kv=document.getElementById('ovKV'); kv.innerHTML='';
+  const meta = await get('meta','/api/company/'+tk+'/ingest/meta').catch(()=>({}));
+  const rep=(meta&&meta.report)||{};
+  const rows=[['Last data sync',meta.last_ingest||'never — press ⟳ REFRESH'],
+    ['Sources used',(rep.sources_used||[]).join(', ')||'—'],
+    ['Cells reconciled',rep.cells||0],['Cross-verified',rep.verified||0],
+    ['Single-source',rep.single_source||0],['Conflicts',rep.conflicts||0]];
+  if(dash && dash.intrinsic_value){ rows.push(['Intrinsic value',fmt(dash.intrinsic_value,2)],
+    ['Margin of safety',pct(dash.margin_pct)],['Model dispersion',pct(dash.dispersion_pct)],
+    ['Bullish / bearish',(dash.bullish||0)+' / '+(dash.bearish||0)+' of '+(dash.total_models||0)]); }
+  kv.innerHTML=rows.map(([k,val])=>`<div class="kv"><span class="k">${k}</span><span class="v">${val}</span></div>`).join('');
+
+  // Price history: prefer stored series; otherwise fall back to LIVE Yahoo
+  // series (no manual sync needed) so the chart always renders.
+  let pdates=null, pclose=null, plabel='';
+  if(ov.price_series && ov.price_series.dates && ov.price_series.dates.length){
+    pdates=ov.price_series.dates; pclose=ov.price_series.close; plabel=L('synced','本地');
+  } else {
+    const tc = await get('tech','/api/company/'+tk+'/technical').catch(()=>null);
+    if(tc && tc.series && tc.series.dates){ pdates=tc.series.dates; pclose=tc.series.close; plabel=L('live','实时'); }
+  }
+  const ovHd=document.querySelector('#v-overview #ovChart')?.closest('.panel')?.querySelector('h3 .sub');
+  if(ovHd) ovHd.textContent=plabel;
+  if(pdates){
+    const axc=axisColors();
+    drawChart('ovChart',{
+      grid:{left:50,right:14,top:14,bottom:54},
+      xAxis:{type:'category',data:pdates,axisLabel:{color:axc.ax,fontSize:9},axisLine:{lineStyle:{color:axc.gl}}},
+      yAxis:{type:'value',scale:true,axisLabel:{color:axc.ax,fontSize:9},splitLine:{lineStyle:{color:axc.gl}}},
+      tooltip:{trigger:'axis',formatter:tipFmt('$')},
+      dataZoom:[{type:'inside',start:0,end:100},
+        {type:'slider',height:22,bottom:8,start:0,end:100,
+         borderColor:axc.gl,fillerColor:'rgba(74,168,255,0.18)',
+         handleStyle:{color:axc.amber},textStyle:{color:axc.ax,fontSize:9},
+         dataBackground:{lineStyle:{color:axc.gl},areaStyle:{color:axc.gl}}}],
+      series:[{name:L('Close','收盘'),type:'line',data:pclose,showSymbol:false,lineStyle:{color:axc.amber,width:1.5},
+        areaStyle:{color:'rgba(62,166,255,0.10)'}}]
+    });
+    setTimeout(()=>{ const c=S.charts['ovChart']; if(c) c.resize(); },60);
+  } else { document.getElementById('ovChart').innerHTML=`<div class="empty">${L('No price history. Press ⟳ REFRESH.','暂无价格数据，请按 ⟳ 刷新。')}</div>`; }
+}
+
+/* ---------------------------------------------------------- FUNDAMENTALS */
+async function vFundamentals(v){
+  const tk=S.ticker;
+  const [st, fs] = await Promise.all([
+    get('st_'+S.fFreq+'_'+S.fYears, `/api/company/${tk}/statements?freq=${S.fFreq}&years=${S.fYears}`),
+    get('fsum_'+S.lang, `/api/company/${tk}/financial_summary?lang=${S.lang}`).catch(()=>({summary:''})),
+  ]);
+  const recs=(st.rows||[]).filter(r=>r.year);
+  const labOf=r=> S.fFreq==='annual' ? ('FY'+r.year) : (r.year+' '+r.period);
+  v.innerHTML='';
+
+  // control bar
+  const ctrl=el('div','panel');
+  const yrOpts=[5,8,10,12].map(n=>`<button class="${S.fYears===n?'on':''}" data-yr="${n}">${n}${S.lang==='zh'?'年':'Y'}</button>`).join('');
+  ctrl.innerHTML=`<h3>${t('statements')}<span class="sub">${recs.length} ${S.lang==='zh'?'期 · 已交叉验证':'periods · cross-verified'}</span></h3>
+    <div class="pad" style="display:flex;gap:18px;align-items:center;flex-wrap:wrap">
+      <div class="seg" id="freqSeg"><button class="${S.fFreq==='annual'?'on':''}" data-f="annual">${t('annual')}</button>
+        <button class="${S.fFreq==='quarterly'?'on':''}" data-f="quarterly">${t('quarterly')}</button></div>
+      <div><span class="mut" style="margin-right:6px">${t('window')}</span><div class="seg" id="yrSeg">${yrOpts}</div></div>
+    </div>`;
+  v.appendChild(ctrl);
+  ctrl.querySelectorAll('#freqSeg button').forEach(b=>b.onclick=()=>{S.fFreq=b.dataset.f; renderView('fundamentals');});
+  ctrl.querySelectorAll('#yrSeg button').forEach(b=>b.onclick=()=>{S.fYears=+b.dataset.yr; renderView('fundamentals');});
+
+  // narrative
+  if(fs.summary){ const np=el('div','panel'); np.style.marginTop='9px';
+    np.innerHTML=`<h3>${t('summary')}</h3><div class="pad narr">${fs.summary}</div>`; v.appendChild(np); }
+
+  // charts
+  const g=el('div','grid g2'); g.style.marginTop='9px';
+  g.innerHTML=`<div class="panel"><h3>${t('revprofit')} <span class="sub">$B</span></h3><div id="fRev" class="chart sm"></div></div>
+    <div class="panel"><h3>${t('margins')} <span class="sub">%</span></h3><div id="fMar" class="chart sm"></div></div>`;
+  v.appendChild(g);
+
+  // table
+  const ROWS=[['TotalRevenue','Revenue','营收',bn],['GrossProfit','Gross Profit','毛利',bn],
+    ['OperatingProfit','Operating Income','营业利润',bn],['NetIncome','Net Income','净利润',bn],
+    ['EPS','EPS','每股收益',x=>fmt(x,2)],['OperatingCashFlow','Op Cash Flow','经营现金流',bn],
+    ['FreeCashFlow','Free Cash Flow','自由现金流',bn],['TotalAssets','Total Assets','总资产',bn],
+    ['TotalLiabilities','Total Liab.','总负债',bn],['TotalEquity','Equity','股东权益',bn],
+    ['CashEndOfPeriod','Cash','现金',bn]];
+  const labels=recs.map(labOf);
+  const p=el('div','panel'); p.style.marginTop='9px';
+  let html=`<h3>${S.fFreq==='annual'?t('annual'):t('quarterly')} ${t('statements')}</h3><div class="tblwrap"><table><thead><tr><th class="lbl">${S.lang==='zh'?'指标':'METRIC'}</th>`+
+    labels.map(l=>`<th>${l}</th>`).join('')+`</tr></thead><tbody>`;
+  ROWS.forEach(([id,en,zh,f])=>{
+    html+=`<tr><td class="lbl">${S.lang==='zh'?zh:en}</td>`+recs.map(r=>`<td>${r[id]!=null?f(r[id]):'—'}</td>`).join('')+`</tr>`;
+  });
+  html+=`</tbody></table></div>`; p.innerHTML=html; v.appendChild(p);
+
+  if(recs.length){
+    const ax=axisColors();
+    drawChart('fRev',{grid:{left:46,right:12,top:26,bottom:24},legend:{textStyle:{color:ax.tx,fontSize:10},top:0},
+      xAxis:{type:'category',data:labels,axisLabel:{color:ax.ax,fontSize:10,rotate:S.fFreq==='quarterly'?40:0}},
+      yAxis:{type:'value',axisLabel:{color:ax.ax,fontSize:10},splitLine:{lineStyle:{color:ax.gl}}},
+      tooltip:{trigger:'axis',formatter:tipFmt('B')},
+      series:[{name:S.lang==='zh'?'营收':'Revenue',type:'bar',data:recs.map(r=>r.TotalRevenue),itemStyle:{color:cssVar('--blue')}},
+        {name:S.lang==='zh'?'净利润':'Net Income',type:'bar',data:recs.map(r=>r.NetIncome),itemStyle:{color:ax.amber}}]});
+    const marg=recs.map(r=>r.TotalRevenue?+(((r.GrossProfit||0)/r.TotalRevenue*100).toFixed(1)):null);
+    const nmar=recs.map(r=>r.TotalRevenue?+(((r.NetIncome||0)/r.TotalRevenue*100).toFixed(1)):null);
+    drawChart('fMar',{grid:{left:38,right:12,top:26,bottom:24},legend:{textStyle:{color:ax.tx,fontSize:10},top:0},
+      xAxis:{type:'category',data:labels,axisLabel:{color:ax.ax,fontSize:10,rotate:S.fFreq==='quarterly'?40:0}},
+      yAxis:{type:'value',axisLabel:{color:ax.ax,fontSize:10,formatter:'{value}%'},splitLine:{lineStyle:{color:ax.gl}}},
+      tooltip:{trigger:'axis',formatter:tipFmt('%')},
+      series:[{name:S.lang==='zh'?'毛利率':'Gross %',type:'line',data:marg,lineStyle:{color:cssVar('--grn')},itemStyle:{color:cssVar('--grn')}},
+        {name:S.lang==='zh'?'净利率':'Net %',type:'line',data:nmar,lineStyle:{color:cssVar('--cyan')},itemStyle:{color:cssVar('--cyan')}}]});
+  }
+}
+
+/* ---------------------------------------------------------- VALUATION */
+async function vValuation(v){
+  const tk=S.ticker, q=`rf=${S.rf}&beta=${S.beta}&erp=${S.erp}`;
+  v.innerHTML='';
+  const ctrl=el('div','panel');
+  ctrl.innerHTML=`<h3>${t('wacc_assump')}</h3><div class="pad" style="display:flex;gap:18px;align-items:center;flex-wrap:wrap">
+    <div class="field"><label>${L('Rf %','无风险%')}</label><input class="inp" id="inRf" value="${S.rf}"></div>
+    <div class="field"><label>Beta</label><input class="inp" id="inBeta" value="${S.beta}"></div>
+    <div class="field"><label>${L('ERP %','股权溢价%')}</label><input class="inp" id="inErp" value="${S.erp}"></div>
+    <button class="btn go" id="recalc">${t('recalc')}</button>
+    <span class="mut" id="waccOut"></span></div>`;
+  v.appendChild(ctrl);
+  $('#recalc').onclick=()=>{ S.rf=+$('#inRf').value||S.rf; S.beta=+$('#inBeta').value||S.beta;
+    S.erp=+$('#inErp').value||S.erp; ['dcf','pe','ev','gr','mc','prof','anl','dash','quote','tech'].forEach(k=>delete S.cache[k]); vValuation(v); };
+
+  const [dcf,pe,ev,dash,quote,tech,prof,gr,anl] = await Promise.all([
+    get('dcf',`/api/company/${tk}/valuation/dcf?${q}`),
+    get('pe',`/api/company/${tk}/valuation/pe?rf=${S.rf}`),
+    get('ev',`/api/company/${tk}/valuation/ev_ebitda`),
+    get('dash',`/api/company/${tk}/dashboard?${q}`),
+    get('quote','/api/company/'+tk+'/quote').catch(()=>({})),
+    get('tech','/api/company/'+tk+'/technical').catch(()=>({})),
+    get('prof',`/api/company/${tk}/valuation/profitability?${q}`).catch(()=>({})),
+    get('gr',`/api/company/${tk}/valuation/growth`).catch(()=>({})),
+    get('anl','/api/company/'+tk+'/analyst').catch(()=>({})),
+  ]);
+  S._valdata={dcf,pe,ev,dash,tech,prof,gr,anl};  // for calc-steps modal
+  if(dcf.wacc) $('#waccOut').textContent=S.lang==='zh'
+    ? `WACC ${fmt(dcf.wacc.wacc*100,2)}%  ·  股权成本 ${fmt((dcf.wacc.cost_equity||0)*100,2)}%  ·  债务成本 ${fmt((dcf.wacc.cost_debt||0)*100,2)}%`
+    : `WACC ${fmt(dcf.wacc.wacc*100,2)}%  ·  Cost of Equity ${fmt((dcf.wacc.cost_equity||0)*100,2)}%  ·  Cost of Debt ${fmt((dcf.wacc.cost_debt||0)*100,2)}%`;
+
+  const livePanel=el('div','panel'); livePanel.style.marginTop='9px';
+  const qCls = quote.change_pct!=null ? cls(quote.change_pct) : '';
+  livePanel.innerHTML=`<h3>${t('livepx')} <span class="sub">${quote.as_of||tech.as_of||'--'}</span></h3>
+    <div class="metrics">
+      <div class="m"><div class="l">${L('LATEST PRICE','最新价格')}</div><div class="d">${fmt(quote.price!=null?quote.price:dash.current_price,2)}</div></div>
+      <div class="m"><div class="l">${L('DAILY CHANGE','日内涨跌')}</div><div class="d ${qCls}">${quote.change_pct!=null?pct(quote.change_pct):'—'}</div></div>
+      <div class="m"><div class="l">${L('TECH SCORE','技术评分')}</div><div class="d">${tech.score!=null?fmt(tech.score,0):'—'}</div></div>
+      <div class="m"><div class="l">${L('TREND','趋势')}</div><div class="d" style="font-size:15px">${S.lang==='zh'?(tech.trend_zh||'—'):(tech.trend_en||'—')}</div></div>
+      <div class="m"><div class="l">${L('FINANCIAL BASIS','财报口径')}</div><div class="d" style="font-size:15px">${L('FY + quarterly TTM','年报 + 季报TTM')}</div></div>
+    </div>`;
+  v.appendChild(livePanel);
+  const ax=axisColors();
+  const fwd=dcf.forward||{}, rev=dcf.reverse||{};
+
+  // ===== TOP: overall verdict + multi-dimensional radar + technical =====
+  const verdict = dash.margin_pct==null?'—':dash.margin_pct>15?L('UNDERVALUED','低估'):dash.margin_pct<-15?L('OVERVALUED','高估'):L('FAIRLY VALUED','合理');
+  const vcol = dash.margin_pct==null?'mut':dash.margin_pct>15?'grn':dash.margin_pct<-15?'red':'amber';
+  const top=el('div','grid g23'); top.style.marginTop='9px';
+  top.innerHTML=`<div class="panel"><h3>${t('valdims')} <span class="sub">${L('8 dimensions · includes technical','8个维度 · 含技术面')}</span></h3><div id="valRadar" class="chart"></div></div>
+    <div class="panel"><h3>${t('composite')} <span class="sub">${L('summary','汇总')}</span></h3><div class="pad">
+      <div style="text-align:center;margin:4px 0 10px"><div class="${vcol}" style="font-size:26px;font-weight:800">${verdict}</div>
+        <div class="mut" style="font-size:12px">${L('margin of safety','安全边际')} <span class="${cls(dash.margin_pct)}">${pct(dash.margin_pct)}</span></div></div>
+      <div class="kv"><span class="k">${L('Intrinsic value','内在价值')}</span><span class="v">${fmt(dash.intrinsic_value,2)}</span></div>
+      <div class="kv"><span class="k">${L('Current price','现价')}</span><span class="v">${fmt(dash.current_price,2)}</span></div>
+      <div class="kv"><span class="k">${L('Confidence','置信度')}</span><span class="v">${(dash.confidence||'—').toUpperCase()}</span></div>
+      <div class="kv"><span class="k">${L('Models bull / bear','模型 多/空')}</span><span class="v">${(dash.bullish||0)} / ${(dash.bearish||0)}</span></div>
+      <div class="kv"><span class="k">${L('Technical','技术')}</span><span class="v">${tech.score!=null?fmt(tech.score,0):'—'} · ${S.lang==='zh'?(tech.trend_zh||''):(tech.trend_en||'')}</span></div>
+    </div></div>`;
+  v.appendChild(top);
+  drawValuationRadar('valRadar',{dash,dcf:fwd,pe,ev,prof,gr,anl,tech});
+
+  const peUp = (pe.fair_prices && pe.fair_prices.fisher && pe.current_price)
+    ? (pe.fair_prices.fisher/pe.current_price-1)*100 : null;
+  const g=el('div','grid g3'); g.style.marginTop='9px';
+  g.innerHTML=`
+    ${valCard(t('composite'),[
+      [L('Intrinsic value','内在价值'),fmt(dash.intrinsic_value,2)],[L('Current','现价'),fmt(dash.current_price,2)],
+      [L('Margin of safety','安全边际'),pct(dash.margin_pct)],[L('Confidence','置信度'),(dash.confidence||'—').toUpperCase()],
+      [L('Bull / bear','看多/看空'),(dash.bullish||0)+' / '+(dash.bearish||0)]],dash.margin_pct,
+      L('Weighted blend of DCF, PE, PEG and EV/EBITDA fair values (median per model). Margin of safety = intrinsic/price − 1.',
+        '对 DCF、PE、PEG、EV/EBITDA 公允价值加权（各模型取中位数）。安全边际 = 内在价值/现价 − 1。'),'composite')}
+    ${valCard(t('dcf_fwd'),[
+      [L('Fair / share','每股公允价'),fmt(fwd.per_share,2)],[L('Enterprise val','企业价值'),bn(fwd.enterprise_value)],
+      [L('Equity value','股权价值'),bn(fwd.equity_value)],[L('Growth used','采用增速'),pct(fwd.growth_pct)],
+      [L('vs Mkt cap','对比市值'),pct(fwd.vs_market_cap_pct)],[L('FCF base','自由现金流基数'),fwd.fcf_source||'—']],fwd.vs_market_cap_pct,
+      L('5-yr FCF projection discounted at WACC + Gordon terminal value; EV − net debt = equity; ÷ shares = fair/share. FCF base shown.',
+        '对未来5年自由现金流按 WACC 折现 + 戈登永续价值；企业价值 − 净负债 = 股权价值；÷ 股数 = 每股公允价。'),'dcf',reasonText(fwd.error))}
+    ${valCard(t('dcf_rev'),[
+      [L('Mkt-implied growth','市场隐含增速'),pct(rev.implied_growth_pct)],[L('Target EV','目标企业价值'),bn(rev.target_ev_b)],
+      [L('Net debt','净负债'),bn(rev.net_debt_b)],[L('Base FCF','自由现金流基数'),bn(rev.base_fcf)]],null,
+      L('Solves for the FCF growth rate that the current market cap already implies (price-justified growth).',
+        '反推当前市值已隐含的自由现金流增速（价格所隐含的增长预期）。'),'dcf_rev',reasonText(rev.error))}
+    ${valCard(t('pe_an'),[
+      [L('PE TTM','市盈率TTM'),fmt(pe.pe_ttm,1)],[L('Fisher fair PE','费雪合理PE'),fmt(pe.fisher_fair_pe,1)],
+      [L('Fair price (Fisher)','合理价(费雪)'),fmt(pe.fair_prices&&pe.fair_prices.fisher,2)],
+      [L('Median PE (hist)','历史中位PE'),fmt(pe.percentiles&&pe.percentiles.p50,1)],
+      [L('PE %ile rank','PE分位'),fmt(pe.percentile_rank,0)+'%']],peUp,
+      L('PE TTM = price / TTM EPS. Fisher fair PE = growth% + 2xRf. Fair price = fair PE x EPS. Percentile rank within its own PE history.',
+        '市盈率TTM = 现价 / TTM每股收益。费雪合理PE = 增速% + 2×无风险利率。合理价 = 合理PE × 每股收益。分位为相对自身历史。'),'pe',reasonText(pe.error))}
+    ${valCard(t('ev'),[
+      ['EV/EBITDA',fmt(ev.multiple,1)],[L('Industry x','行业倍数'),fmt(ev.industry_multiple,1)],
+      ['EBITDA',bn(ev.ebitda_b)],[L('Premium','溢价'),pct(ev.premium_pct)],
+      [L('Implied vs cur','隐含对比现价'),pct(ev.implied_vs_current_pct)]],ev.implied_vs_current_pct,
+      L('EV = market cap + net debt. Multiple = EV ÷ EBITDA(TTM). Implied value applies the industry multiple to this EBITDA.',
+        '企业价值 = 市值 + 净负债。倍数 = 企业价值 ÷ EBITDA(TTM)。隐含价值按行业倍数对该 EBITDA 估算。'),'ev',reasonText(ev.error))}
+    <div class="panel"><h3>${t('mc')} <span class="sub">${L('fair-price probability','公允价概率分布')}</span></h3>
+      <div id="mcProb" class="pad" style="padding-bottom:2px"></div>
+      <div id="mcChart" class="chart sm"></div>
+      <div class="pad mut" style="font-size:11.5px;padding-top:0">${L('4,000 simulations: FCF growth is drawn from its historical mean ± volatility and run through the DCF, then divided by shares → a distribution of fair PRICE per share. Bars = how many runs land in each price bucket; the line marks the current price.','4000 次模拟：自由现金流增速从历史均值±波动率随机抽取跑 DCF，再÷股数 → 每股公允价格的分布。柱状=落在各价格区间的次数；竖线为当前价。')}</div></div>`;
+  v.appendChild(g);
+  // make each valuation card title clickable -> step-by-step calculation modal
+  g.querySelectorAll('[data-val]').forEach(p=>{ const h=p.querySelector('h3'); if(h){ h.classList.add('clickable'); h.onclick=()=>openValModal(p.dataset.val); }});
+
+  // ---- DCF 5y projection + sensitivity heatmap ----
+  if(fwd.flows && fwd.flows.length){
+    const proj=el('div','grid g2'); proj.style.marginTop='9px';
+    let pt=`<div class="panel"><h3>${t('dcf_proj')} <span class="sub">$B</span></h3><div class="tblwrap"><table>
+      <thead><tr><th class="lbl">${L('YEAR','年份')}</th>`+fwd.flows.map((_,i)=>`<th>${S.lang==='zh'?('第'+(i+1)+'年'):('Y'+(i+1))}</th>`).join('')+`</tr></thead><tbody>
+      <tr><td class="lbl">${L('Projected FCF','预测自由现金流')}</td>`+fwd.flows.map(x=>`<td>${fmt(x,2)}</td>`).join('')+`</tr>
+      <tr><td class="lbl">${L('Discounted PV','折现现值')}</td>`+(fwd.pvs||[]).map(x=>`<td>${fmt(x,2)}</td>`).join('')+`</tr>
+      <tr><td class="lbl">${L('Discount factor','折现因子')}</td>`+(fwd.discount_factors||[]).map(x=>`<td>${fmt(x,3)}</td>`).join('')+`</tr>
+      </tbody></table></div>
+      <div class="pad mut" style="font-size:12px">Σ stage-1 PV ${bn(fwd.stage1_pv)} · Terminal PV ${bn(fwd.terminal_pv)} (${fmt((fwd.terminal_mix||0)*100,0)}% of EV) · EV ${bn(fwd.enterprise_value)}</div></div>`;
+    pt+=`<div class="panel"><h3>${t('sens')} <span class="sub">${L('WACC x terminal g','WACC x 永续增长')}</span></h3>
+      <div class="pad mut" style="font-size:11.5px;padding-bottom:4px">${L('Each cell = enterprise value ($B) if WACC (columns) and terminal growth (rows) took that value. Greener = higher value. Shows how sensitive the DCF is to your assumptions.','每格 = 当 WACC（列）与永续增长率（行）取该值时的企业价值（$B）。越绿越高，反映 DCF 对假设的敏感度。')}</div>
+      ${heatmap(fwd.sensitivity)}</div>`;
+    proj.innerHTML=pt; v.appendChild(proj);
+  }
+
+  // ---- P/E band chart (P/E view default) + reverse DCF path ----
+  const bd=pe.band||{};
+  const peCaption = L(`Daily P/E = price ÷ TTM EPS. The flat lines are the 20th/50th/80th percentiles of this stock's own historical P/E. Current P/E ${fmt(bd.pe_now,1)}× sits at the ${fmt(pe.percentile_rank,0)}th percentile (P50 median = ${fmt(bd.pe_p50,1)}×).`,
+    `每日市盈率 = 价格 ÷ TTM每股收益。三条水平线是该股自身历史市盈率的 20/50/80 百分位。当前市盈率 ${fmt(bd.pe_now,1)}×，位于第 ${fmt(pe.percentile_rank,0)} 百分位（P50 中位 = ${fmt(bd.pe_p50,1)}×）。`);
+  const row2=el('div','grid g23'); row2.style.marginTop='9px';
+  row2.innerHTML=`<div class="panel"><h3>${t('pe_band')}
+      <span class="sub" style="display:flex;gap:8px;align-items:center"><span class="seg" id="peSeg">
+        <button class="${S.peView!=='price'?'on':''}" data-pv="pe">P/E</button>
+        <button class="${S.peView==='price'?'on':''}" data-pv="price">${L('Price','价格')}</button></span></span></h3>
+      <div id="peBand" class="chart sm"></div>
+      <div class="pad mut" style="font-size:11.5px;padding-top:0" id="peCap">${peCaption}</div></div>
+    <div class="panel"><h3>${t('dcf_rev')} <span class="sub">${L('implied FCF path','隐含自由现金流路径')}</span></h3><div class="tblwrap"><table>
+      <thead><tr><th class="lbl">${L('YR','年份')}</th><th>${L('FCF $B','自由现金流 $B')}</th><th>${L('DF','折现')}</th></tr></thead><tbody>`+
+      ((rev.path||[]).map(p=>`<tr><td class="lbl">${p.year}</td><td>${fmt(p.fcf,2)}</td><td>${fmt(p.df,3)}</td></tr>`).join('')||`<tr><td class="lbl mut" colspan="3">${L('Reverse DCF needs positive FCF + market cap','反向DCF需要正自由现金流+市值')}</td></tr>`)+
+      `</tbody></table></div></div>`;
+  v.appendChild(row2);
+  function drawPeBand(view){
+    if(!(bd.dates && bd.dates.length)){ const e=document.getElementById('peBand'); if(e) e.innerHTML=`<div class="empty">${L('P/E bands need daily price history + EPS. Press ⟳ REFRESH.','市盈率通道需要日线行情 + 每股收益，请按 ⟳ 刷新。')}${pe.error?'<br><span style="font-size:11px">('+pe.error+')</span>':''}</div>`; return; }
+    const n=bd.dates.length, flat=(val)=>new Array(n).fill(val);
+    const common={grid:{left:48,right:12,top:26,bottom:48},legend:{textStyle:{color:ax.tx,fontSize:10},top:0},
+      xAxis:{type:'category',data:bd.dates,axisLabel:{color:ax.ax,fontSize:9}},
+      dataZoom:[{type:'inside'},{type:'slider',height:18,bottom:6,start:0,end:100,borderColor:ax.gl,fillerColor:'rgba(74,168,255,0.18)',handleStyle:{color:ax.amber},textStyle:{color:ax.ax,fontSize:9}}]};
+    if(view==='price'){
+      drawChart('peBand',Object.assign({},common,{
+        yAxis:{type:'value',scale:true,axisLabel:{color:ax.ax,fontSize:9},splitLine:{lineStyle:{color:ax.gl}}},
+        tooltip:{trigger:'axis',formatter:tipFmt('$')},
+        series:[{name:'P80',type:'line',data:bd.b80,showSymbol:false,lineStyle:{color:cssVar('--red'),width:1,type:'dashed'}},
+          {name:'P50',type:'line',data:bd.b50,showSymbol:false,lineStyle:{color:ax.tx,width:1,type:'dashed'}},
+          {name:'P20',type:'line',data:bd.b20,showSymbol:false,lineStyle:{color:cssVar('--grn'),width:1,type:'dashed'}},
+          {name:L('Price','价格'),type:'line',data:bd.close,showSymbol:false,lineStyle:{color:ax.amber,width:1.8}}]}));
+    } else {
+      drawChart('peBand',Object.assign({},common,{
+        yAxis:{type:'value',scale:true,axisLabel:{color:ax.ax,fontSize:9,formatter:'{value}x'},splitLine:{lineStyle:{color:ax.gl}}},
+        tooltip:{trigger:'axis',formatter:tipFmt('x')},
+        series:[{name:'P80 '+fmt(bd.pe_p80,1)+'x',type:'line',data:flat(bd.pe_p80),showSymbol:false,lineStyle:{color:cssVar('--red'),width:1,type:'dashed'}},
+          {name:'P50 '+fmt(bd.pe_p50,1)+'x',type:'line',data:flat(bd.pe_p50),showSymbol:false,lineStyle:{color:ax.tx,width:1,type:'dashed'}},
+          {name:'P20 '+fmt(bd.pe_p20,1)+'x',type:'line',data:flat(bd.pe_p20),showSymbol:false,lineStyle:{color:cssVar('--grn'),width:1,type:'dashed'}},
+          {name:L('P/E','市盈率'),type:'line',data:bd.pe,showSymbol:false,lineStyle:{color:ax.amber,width:1.8}}]}));
+    }
+  }
+  drawPeBand(S.peView==='price'?'price':'pe');
+  const seg=document.getElementById('peSeg');
+  if(seg) seg.querySelectorAll('button').forEach(b=>b.onclick=()=>{ S.peView=b.dataset.pv;
+    seg.querySelectorAll('button').forEach(x=>x.classList.toggle('on',x===b)); drawPeBand(S.peView); });
+
+  // ---- profitability + growth + analyst ----
+  const row3=el('div','grid g3'); row3.style.marginTop='9px';
+  row3.innerHTML=`${profCard(prof)}${growthCard(gr)}${analystCard(anl)}`;
+  v.appendChild(row3);
+
+  // ---- Monte Carlo ----
+  const mc=await get('mc',`/api/company/${tk}/valuation/montecarlo?${q}&sims=4000`).catch(()=>null);
+  const probEl=document.getElementById('mcProb');
+  if(mc && mc.error){ if(probEl) probEl.innerHTML=`<div class="mut" style="font-size:12px">${reasonText(mc.error)}</div>`;
+    const e=document.getElementById('mcChart'); if(e) e.innerHTML=''; }
+  else if(mc && mc.price && mc.price.histogram){
+    const P=mc.price, h=P.histogram, edges=h.edges, centers=[];
+    for(let i=0;i<edges.length-1;i++) centers.push(((edges[i]+edges[i+1])/2).toFixed(0));
+    const pa=P.prob_above_price_pct, paCol=pa>=50?'grn':'red';
+    if(probEl) probEl.innerHTML=`<div class="tagrow" style="margin-bottom:4px">
+      <span class="badge b-warn">${L('P(fair > price)','公允>现价概率')}: <span class="${paCol}">${fmt(pa,0)}%</span></span>
+      <span class="badge b-ok">${L('P(+20%)','+20%概率')}: ${fmt(P.prob_upside_20_pct,0)}%</span>
+      <span class="badge b-bad">${L('P(−20%)','−20%概率')}: ${fmt(P.prob_downside_20_pct,0)}%</span></div>
+      <div class="kv"><span class="k">${L('Median fair price','公允价中位')}</span><span class="v">${fmt(P.median,2)} <span class="mut">(${L('now','现价')} ${fmt(P.current_price,2)})</span></span></div>
+      <div class="kv"><span class="k">${L('Likely range (P10–P90)','可能区间 P10–P90')}</span><span class="v">${fmt(P.p10,2)} – ${fmt(P.p90,2)}</span></div>
+      <div class="kv"><span class="k">${L('Median expected return','中位预期回报')}</span><span class="v ${cls(P.expected_return_pct)}">${pct(P.expected_return_pct)}</span></div>`;
+    const cur=P.current_price;
+    drawChart('mcChart',{grid:{left:40,right:12,top:10,bottom:22},
+      xAxis:{type:'category',data:centers,axisLabel:{color:ax.ax,fontSize:8}},
+      yAxis:{type:'value',axisLabel:{color:ax.ax,fontSize:9},splitLine:{lineStyle:{color:ax.gl}}},
+      tooltip:{trigger:'axis',formatter:(ps)=>{const p=ps[0];return `${L('Fair price','公允价')} ~$${p.axisValue}<br>${L('runs','次数')}: <b>${p.value}</b>`;}},
+      series:[{name:L('runs','次数'),type:'bar',data:h.counts||[],itemStyle:{color:cssVar('--mag')},
+        markLine:{symbol:'none',silent:true,lineStyle:{color:ax.amber,width:1.5},
+          data:[{xAxis:String(centers.reduce((b,c,i)=>Math.abs(+c-cur)<Math.abs(+centers[b]-cur)?i:b,0))}],
+          label:{formatter:L('now','现价'),color:ax.amber,fontSize:9}}}]});
+  } else if(document.getElementById('mcChart')){ if(probEl) probEl.innerHTML=`<div class="mut" style="font-size:12px">${L('Needs positive free cash flow + shares outstanding.','需要正自由现金流与股本数据。')}</div>`; document.getElementById('mcChart').innerHTML=''; }
+}
+function reasonText(err){
+  if(!err) return null;
+  return ({
+    negative_fcf:L('Free cash flow is negative (the company burns cash) — a DCF value is not meaningful.','自由现金流为负（公司在烧钱）—— DCF估值无意义，不适用。'),
+    no_fcf:L('No free-cash-flow data available for this company.','该公司暂无自由现金流数据。'),
+    wacc_le_perp:L('WACC must exceed the terminal growth rate to compute a DCF.','WACC 需大于永续增长率才能计算 DCF。'),
+    no_market_cap:L('Market cap unavailable — press ⟳ REFRESH.','缺少市值数据 —— 请按 ⟳ 刷新。'),
+    no_price:L('Needs daily price history — press ⟳ REFRESH.','需要日线行情 —— 请按 ⟳ 刷新。'),
+    missing_data:L('Not enough data to compute this.','数据不足，无法计算。'),
+    insufficient_data:L('Not enough data to compute this.','数据不足，无法计算。'),
+    no_eps:L('No EPS / earnings data available.','暂无每股收益/盈利数据。'),
+    no_valid_pe:L('No valid P/E in the historical window (earnings near zero/negative).','历史窗口内无有效市盈率（盈利接近零或为负）。'),
+  })[err] || L('Not applicable for this company.','该公司不适用。');
+}
+function valCard(title,rows,signal,info,kind,reason){
+  let bar=''; if(signal!=null && !isNaN(signal)){ const w=Math.max(-50,Math.min(50,signal))/100+0.5;
+    bar=`<div class="gauge" style="margin-top:6px"><div style="width:${(w*100).toFixed(0)}%;background:${signal>=0?'var(--grn)':'var(--red)'}"></div></div>`; }
+  const allEmpty = rows.every(([,val])=> val==null || val==='—' || val==='—%' );
+  const body = allEmpty
+    ? `<div class="mut" style="font-size:12px;line-height:1.5">${reason || L('No data yet — press ⟳ REFRESH to load financials + market data.','暂无数据 — 按 ⟳ 刷新 加载财报与行情。')}</div>`
+    : rows.map(([k,val])=>`<div class="kv"><span class="k">${k}</span><span class="v">${val}</span></div>`).join('')+bar;
+  const hint = kind? `<span class="sub" style="color:var(--amber)">${L('steps ▸','计算步骤 ▸')}</span>` : '';
+  return `<div class="panel"${kind?` data-val="${kind}"`:''}><h3>${title}${hint}</h3><div class="pad">${body}</div></div>`;
+}
+function heatmap(sens){
+  if(!sens||!sens.matrix) return '<div class="empty">n/a</div>';
+  const flat=sens.matrix.flat().filter(x=>x!=null);
+  const lo=Math.min(...flat), hi=Math.max(...flat);
+  const col=x=>{ if(x==null) return 'var(--panel2)'; const t=(hi===lo)?0.5:(x-lo)/(hi-lo);
+    const r=Math.round(255*(1-t)+38*t), g=Math.round(90*(1-t)+208*t), b=Math.round(90*(1-t)+124*t); return `rgb(${r},${g},${b})`; };
+  let h=`<div class="tblwrap"><table class="heat"><thead><tr><th class="lbl">g＼WACC</th>`+
+    sens.wacc.map(w=>`<th>${fmt(w,1)}%</th>`).join('')+`</tr></thead><tbody>`;
+  sens.perp.forEach((p,i)=>{ h+=`<tr><td class="lbl">${fmt(p,1)}%</td>`+
+    sens.matrix[i].map(x=>`<td style="background:${col(x)}">${x==null?'—':fmt(x,0)}</td>`).join('')+`</tr>`; });
+  return h+`</tbody></table></div>`;
+}
+function profCard(p){
+  const du=p.dupont||{};
+  const rows=[['ROE',p.roe],['ROA',p.roa],['ROIC',p.roic],
+    [L('Net margin','净利率'),du.net_margin],[L('ROIC − WACC','ROIC−WACC价差'),p.spread_pct],
+    [L('Debt/Equity','负债权益比'),p.de_ratio]].filter(r=>r[1]!=null);
+  if(!rows.length) return `<div class="panel"><h3>${t('prof')}</h3><div class="pad mut">${L('no data','数据不足')}</div></div>`;
+  const body=rows.map(([k,val])=>{
+    const isRatio=k.indexOf('/')>=0||k.indexOf('权益比')>=0; const suf=isRatio?'x':'%';
+    const c=(k.indexOf('WACC')>=0)?cls(val):'';
+    return `<div class="kv"><span class="k">${k}</span><span class="v ${c}">${fmt(val,2)}${suf}</span></div>`;
+  }).join('');
+  return `<div class="panel"><h3>${t('prof')} <span class="sub">TTM</span></h3><div class="pad">${body}</div></div>`;
+}
+const GROWTH_LBL={Revenue:['Revenue','营收'],GrossProfit:['Gross Profit','毛利'],NetIncome:['Net Income','净利润'],
+  EPS:['EPS','每股收益'],OCF:['OCF','经营现金流'],FCF:['FCF','自由现金流'],
+  TotalAssets:['Total Assets','总资产'],TotalEquity:['Equity','股东权益'],'LT-Liabilities':['LT-Liab.','长期负债']};
+function growthCard(gr){
+  const rows=(gr.rows||[]);
+  if(!rows.length) return `<div class="panel"><h3>${t('growth')}</h3><div class="pad mut">${L('no data','数据不足')}</div></div>`;
+  let h=`<div class="panel"><h3>${t('growth')} <span class="sub">TTM</span></h3><div class="tblwrap"><table>
+    <thead><tr><th class="lbl">${L('METRIC','指标')}</th><th>${L('QoQ','环比')}</th><th>${L('CAGR','复合增速')}</th></tr></thead><tbody>`;
+  rows.forEach(r=>{ const lab=(GROWTH_LBL[r.metric]?GROWTH_LBL[r.metric][S.lang==='zh'?1:0]:r.metric);
+    h+=`<tr><td class="lbl">${lab}</td><td class="${cls(r.qoq_pct)}">${pct(r.qoq_pct)}</td><td class="${cls(r.cagr_pct)}">${pct(r.cagr_pct)}</td></tr>`; });
+  return h+`</tbody></table></div></div>`;
+}
+function analystCard(a){
+  const pt=a.price_target||{}, recs=a.recommendations||[];
+  const last=recs.length?recs[recs.length-1]:null;
+  const rows=[[L('Target mean','目标均价'),pt.target_mean!=null?fmt(pt.target_mean,2):'—'],
+    [L('Target high','目标高'),pt.target_high!=null?fmt(pt.target_high,2):'—'],
+    [L('Target low','目标低'),pt.target_low!=null?fmt(pt.target_low,2):'—'],
+    [L('Current','现价'),a.current_price!=null?fmt(a.current_price,2):'—']];
+  let recline='';
+  if(last) recline=`<div class="tagrow" style="margin-top:6px">
+    <span class="badge b-ok">${L('Buy','买入')} ${(last.strong_buy||0)+(last.buy||0)}</span>
+    <span class="badge b-warn">${L('Hold','持有')} ${last.hold||0}</span>
+    <span class="badge b-bad">${L('Sell','卖出')} ${(last.sell||0)+(last.strong_sell||0)}</span></div>`;
+  const body = (pt.target_mean!=null||last)
+    ? rows.map(([k,val])=>`<div class="kv"><span class="k">${k}</span><span class="v">${val}</span></div>`).join('')+recline
+    : `<div class="mut">${L('Press ⟳ REFRESH for analyst data','按 ⟳ 刷新 获取分析师数据')}</div>`;
+  return `<div class="panel"><h3>${t('analyst')}</h3><div class="pad">${body}</div></div>`;
+}
+function clampScore(v){ return Math.max(0,Math.min(100,v==null||isNaN(v)?50:+v)); }
+function marginScore(v){ return clampScore(((v==null?0:v)+30)/60*100); }
+function inverseDistanceScore(v){ return clampScore(100-Math.abs(v||0)*2); }
+function growthMedianScore(gr){
+  const vals=(gr.rows||[]).map(r=>r.cagr_pct).filter(v=>v!=null&&!isNaN(v));
+  if(!vals.length) return 50;
+  vals.sort((a,b)=>a-b);
+  return clampScore((vals[Math.floor(vals.length/2)]+10)/40*100);
+}
+function drawValuationRadar(id,d){
+  const ax=axisColors();
+  const current = d.dash && d.dash.current_price;
+  const dcfUpside = d.dcf && d.dcf.per_share && current ? (d.dcf.per_share/current-1)*100 : null;
+  const peRank = d.pe && d.pe.percentile_rank!=null ? 100-d.pe.percentile_rank : null;
+  const analystUpside = d.anl && d.anl.price_target && d.anl.price_target.target_mean && current
+    ? (d.anl.price_target.target_mean/current-1)*100 : null;
+  const dims=[
+    [L('Composite','综合'),marginScore(d.dash&&d.dash.margin_pct)],
+    ['DCF',marginScore(dcfUpside)],
+    [L('P/E percentile','市盈率分位'),clampScore(peRank)],
+    ['EV/EBITDA',inverseDistanceScore(d.ev&&d.ev.premium_pct)],
+    [L('Growth','成长'),growthMedianScore(d.gr||{})],
+    [L('Profitability','盈利能力'),clampScore(((d.prof&&d.prof.roic)||0)*3)],
+    [L('Analyst','分析师'),marginScore(analystUpside)],
+    [L('Technical','技术'),clampScore(d.tech&&d.tech.score)],
+  ];
+  drawChart(id,{radar:{indicator:dims.map(([name])=>({name,max:100})),radius:'66%',
+      axisName:{color:ax.tx,fontSize:11},splitLine:{lineStyle:{color:ax.gl}},
+      splitArea:{areaStyle:{color:['transparent']}},axisLine:{lineStyle:{color:ax.gl}}},
+    series:[{type:'radar',data:[{value:dims.map(([,v])=>+v.toFixed(1)),name:t('valdims'),
+      areaStyle:{color:'rgba(217,119,87,0.20)'},lineStyle:{color:ax.amber,width:2},itemStyle:{color:ax.amber}}]}]});
+}
+function drawValuationTechnical(id,tc){
+  const node=document.getElementById(id);
+  if(!tc || tc.error || !tc.series || !tc.series.dates){ if(node) node.innerHTML=`<div class="empty">${L('No live technical series.','暂无最新技术序列。')}</div>`; return; }
+  const ax=axisColors();
+  const sma=(n)=>{const c=tc.series.close,o=[];for(let i=0;i<c.length;i++){if(i<n-1){o.push(null);continue;}let s=0;for(let j=0;j<n;j++)s+=c[i-j];o.push(+(s/n).toFixed(2));}return o;};
+  drawChart(id,{grid:{left:48,right:16,top:28,bottom:24},legend:{textStyle:{color:ax.tx,fontSize:10},top:0},
+    xAxis:{type:'category',data:tc.series.dates,axisLabel:{color:ax.ax,fontSize:9}},
+    yAxis:{type:'value',scale:true,axisLabel:{color:ax.ax,fontSize:9},splitLine:{lineStyle:{color:ax.gl}}},
+    tooltip:{trigger:'axis',formatter:tipFmt('$')},
+    series:[{name:L('Close','收盘'),type:'line',data:tc.series.close,showSymbol:false,lineStyle:{color:ax.amber,width:1.6}},
+      {name:'SMA50',type:'line',data:sma(50),showSymbol:false,lineStyle:{color:cssVar('--cyan'),width:1,type:'dashed'}},
+      {name:'SMA200',type:'line',data:sma(200),showSymbol:false,lineStyle:{color:cssVar('--mag'),width:1,type:'dashed'}}]});
+}
+
+/* ---------------------------------------------------------- MASTERS */
+async function vMasters(v){
+  const tk=S.ticker;
+  const d=await get('mast','/api/company/'+tk+'/masters');
+  v.innerHTML='';
+  const g=el('div','grid g23');
+  g.innerHTML=`<div class="panel"><h3>${t('lens')} <span class="sub">0–100</span></h3><div class="tblwrap"><table id="mastTbl"></table></div></div>
+    <div class="panel"><h3>${t('radar')}</h3><div id="radar" class="chart"></div></div>`;
+  v.appendChild(g);
+  const defs=d.definitions||{}, sc=d.scores||{};
+  S._masters={sc,defs};
+  let rows=`<thead><tr><th class="lbl">${L('MASTER','投资大师')}</th><th class="lbl">${L('PHILOSOPHY','投资理念')}</th><th>${L('SCORE','评分')}</th><th class="lbl">${L('GAUGE','强弱')}</th><th></th></tr></thead><tbody>`;
+  Object.keys(sc).forEach(k=>{ const s=sc[k], def=defs[k]||{}; const col=s.score>=70?'grn':s.score>=45?'amber':'red';
+    const w=Math.max(0,Math.min(100,s.score||0));
+    const bar=s.available?`<div class="gauge" style="width:90px"><div style="width:${w}%;background:var(--${col})"></div></div>`:`<span class="mut">${L('no data','无数据')}</span>`;
+    const nm=(S.lang==='zh'?def.name_zh||def.name_cn:def.name_en)||k;
+    const ph=(S.lang==='zh'?def.philosophy_zh||def.philosophy_cn:def.philosophy_en)||'';
+    rows+=`<tr class="clickable" data-mk="${k}"><td class="lbl">${def.icon||''} ${nm}</td>
+      <td class="lbl mut">${ph}</td>
+      <td class="${col}">${s.available?fmt(s.score,0):'—'}</td>
+      <td class="lbl">${bar}</td><td class="lbl" style="color:var(--amber)">${L('why ▸','为什么 ▸')}</td></tr>`; });
+  rows+=`</tbody>`; const mt=document.getElementById('mastTbl'); mt.innerHTML=rows;
+  mt.querySelectorAll('[data-mk]').forEach(r=>r.onclick=()=>openMasterModal(r.dataset.mk));
+  if(d.average!=null){ document.querySelector('#v-masters .panel h3').innerHTML=
+    `${t('lens')} <span class="sub">${L('avg','均分')} ${fmt(d.average,0)} · ${d.available_count||0} ${S.lang==='zh'?'可用 · 点击行查看原因':'available · click a row for the reason'}</span>`; }
+
+  const styleDims=d.dimensions||{};
+  const scoreDims=Object.keys(sc).filter(k=>sc[k]&&sc[k].available).map(k=>[
+    (defs[k]&&((S.lang==='zh'?defs[k].name_zh:defs[k].name_en)||defs[k].name_en))||k,
+    sc[k].score
+  ]);
+  const radarDims=scoreDims.length>=6 ? scoreDims : Object.keys(styleDims).map(k=>[k.toUpperCase(),styleDims[k]]);
+  const axc=axisColors();
+  drawChart('radar',{radar:{indicator:radarDims.map(([name])=>({name,max:100})),
+      axisName:{color:axc.tx,fontSize:11},splitLine:{lineStyle:{color:axc.gl}},
+      splitArea:{areaStyle:{color:['transparent']}},axisLine:{lineStyle:{color:axc.gl}}},
+    series:[{type:'radar',data:[{value:radarDims.map(([,val])=>val),name:'Score',
+      areaStyle:{color:'rgba(74,168,255,0.20)'},lineStyle:{color:axc.amber},itemStyle:{color:axc.amber}}]}]});
+
+  if(d.qg){ const qp=el('div','panel'); qp.style.marginTop='9px';
+    const dims=d.qg.dim_scores||{};
+    const qcol=d.qg.score>=70?'grn':d.qg.score>=45?'amber':'red';
+    qp.innerHTML=`<h3>${t('qg')} <span class="sub">${L('Quality-Growth composite','质量-成长综合')} · <span class="${qcol}">${fmt(d.qg.score,1)}</span> · ${d.qg.available?(S.lang==='zh'?'可用':'available'):(S.lang==='zh'?'数据不足':'insufficient')}</span></h3>
+      <div class="pad"><div class="narr" style="margin-bottom:8px">${L('QG-Pro scores four pillars (each 0–100): growth quality, downside protection, drawdown risk control and cash-flow quality.','QG-Pro 从四个维度评分（各0–100）：成长质量、下行保护、回撤风险控制、现金流质量。')}</div>`+
+      Object.entries(dims).map(([k,val])=>{ const nm=QG_DIM[k]||[k,k]; const c=val>=70?'grn':val>=45?'amber':'red';
+        return `<div style="margin-bottom:6px"><div class="kv" style="border:none;padding:1px 0">
+          <span class="k">${S.lang==='zh'?nm[1]:nm[0]}</span><span class="v ${c}">${fmt(val,0)}</span></div>
+          <div class="gauge" style="height:8px"><div style="width:${Math.max(0,Math.min(100,val))}%;background:var(--${c})"></div></div></div>`;}).join('')
+      +`</div>`;
+    v.appendChild(qp);
+  }
+}
+// QG-Pro dimension — clear full bilingual names
+const QG_DIM={
+  G_adj:['Growth quality (risk-adjusted)','成长质量（风险调整后）'],
+  S_down:['Downside protection','下行保护'],
+  D_risk:['Drawdown risk control','回撤风险控制'],
+  CF_quality:['Cash-flow quality (OCF vs net income)','现金流质量（经营现金流/净利润）'],
+};
+// what each master rewards (bilingual)
+const MASTER_DOC={
+  Buffett:['Durable moats, high & stable ROE/ROIC, strong free cash flow at a fair price.','持久护城河、高且稳定的ROE/ROIC、充裕自由现金流且价格合理。'],
+  Munger:['High-quality businesses, low leverage, consistent returns — quality over cheapness.','高质量企业、低杠杆、稳定回报——质量优先于便宜。'],
+  Lynch:['Growth at a reasonable price (PEG), earnings growth vs valuation.','合理价格的成长（PEG），盈利增速对比估值。'],
+  Graham:['Deep value & margin of safety — low PE/PB, solid balance sheet.','深度价值与安全边际——低市盈/市净、稳健资产负债表。'],
+  Greenblatt:['Magic formula — high earnings yield + high return on capital.','神奇公式——高盈利收益率 + 高资本回报率。'],
+  Fisher:['Hyper-growth & innovation — strong, sustained revenue/earnings growth.','极速成长与创新——强劲且持续的营收/盈利增长。'],
+  Templeton:['Contrarian value & mean reversion — cheap vs history.','逆向价值与均值回归——相对历史的便宜程度。'],
+  Dalio:['Macro resilience & balance-sheet strength — low leverage, stability.','宏观稳健与资产负债表强度——低杠杆、稳定性。'],
+  Soros:['Momentum & reflexivity — trend and price action.','动量与反身性——趋势与价格动能。'],
+};
+function openMasterModal(k){
+  const m=S._masters; if(!m) return; const s=(m.sc||{})[k]||{}, def=(m.defs||{})[k]||{};
+  const nm=(S.lang==='zh'?def.name_zh||def.name_cn:def.name_en)||k;
+  const doc=MASTER_DOC[k]||['',''];
+  const col=s.score>=70?'grn':s.score>=45?'amber':'red';
+  const lvl = !s.available?L('not enough data','数据不足') : s.score>=70?L('strongly fits this style','强烈契合该风格')
+    : s.score>=45?L('partially fits','部分契合'):L('does not fit this style','不契合该风格');
+  const factors=Object.entries(s.factors||{}).map(([fk,fv])=>
+    `<div class="kv"><span class="k">${fk}</span><span class="v">${typeof fv==='number'?fmt(fv,2):fv}</span></div>`).join('')
+    || `<div class="mut">${L('No sub-factors available.','暂无子项。')}</div>`;
+  openModal(`<div style="display:flex;align-items:center;gap:14px;margin-bottom:8px">
+      <div style="font-size:40px">${def.icon||'★'}</div>
+      <div><div style="font-size:20px;font-weight:800">${nm} · <span class="${col}">${s.available?fmt(s.score,0):'—'}</span>/100</div>
+        <div class="mut">${(S.lang==='zh'?def.philosophy_zh||def.philosophy_cn:def.philosophy_en)||''}</div></div></div>
+    <div class="narr" style="margin-bottom:12px"><b>${L('What this lens rewards:','该视角看重：')}</b> ${S.lang==='zh'?doc[1]:doc[0]}</div>
+    <div class="narr" style="margin-bottom:12px"><b>${L('Verdict for this stock:','对该股结论：')}</b> <span class="${col}">${lvl}</span> — ${L('the score blends the sub-factors below against this style’s ideal profile.','评分由下列子项与该风格的理想画像综合得出。')}</div>
+    <h3 style="background:var(--glass2);color:var(--amber);padding:7px 10px;border-radius:8px;font-size:12px;margin-bottom:6px">${L('SUB-FACTORS','子项指标')}</h3>
+    <div class="pad" style="padding:0">${factors}</div>`);
+}
+
+/* ---------------------------------------------------------- NEWS */
+async function vNews(v){
+  const tk=S.ticker;
+  let d=await get('news','/api/company/'+tk+'/news').catch(()=>({count:0}));
+  if(!d.count){
+    v.innerHTML=`<div class="panel"><h3>${t('news')}</h3><div class="empty">${S.lang==='zh'?('暂无 '+tk+' 的新闻缓存。'):('No cached news for '+tk+'.')}<br><br>
+      <button class="btn go" onclick="fetchNews()">${t('fetchnews')}</button></div></div>`; return;
+  }
+  v.innerHTML='';
+  const tone=d.tone||'';
+  const tcol=tone.includes('positive')?'grn':tone.includes('negative')?'red':'amber';
+  const summ = S.lang==='zh' ? (d.summary_zh||d.summary||'') : (d.summary||'');
+  const toneLabel = S.lang==='zh' ? (d.tone_zh||tone) : tone.toUpperCase();
+  const hdr=el('div','panel');
+  hdr.innerHTML=`<h3>${t('sentiment')} <span class="sub">${d.count} ${S.lang==='zh'?'条':'headlines'}</span></h3>
+    <div class="pad"><div class="tagrow">
+      <span class="badge b-ok">▲ ${d.counts.positive} ${S.lang==='zh'?'利多':'BULLISH'}</span>
+      <span class="badge b-bad">▼ ${d.counts.negative} ${S.lang==='zh'?'利空':'BEARISH'}</span>
+      <span class="badge b-single">● ${d.counts.neutral} ${S.lang==='zh'?'中性':'NEUTRAL'}</span>
+      <span class="badge b-warn">${S.lang==='zh'?'情绪分':'SCORE'} ${d.sentiment_score>=0?'+':''}${d.sentiment_score} · <span class="${tcol}">${toneLabel}</span></span>
+      <button class="btn" style="margin-left:auto" onclick="fetchNews()">${t('refresh')} ${t('news')}</button>
+    </div><div class="narr">${summ}</div></div>`;
+  v.appendChild(hdr);
+
+  const g=el('div','grid g3'); g.style.marginTop='9px';
+  g.appendChild(newsCol(t('pros'),d.pros,'p'));
+  g.appendChild(newsCol(t('cons'),d.cons,'n'));
+  g.appendChild(newsCol(t('forward'),d.forward,'u'));
+  v.appendChild(g);
+
+  // ---- retail discussion (Reddit, ranked by engagement) ----
+  const soc=d.social;
+  if(soc && soc.count){
+    const tcl=soc.tone.includes('bull')?'grn':soc.tone.includes('bear')?'red':'amber';
+    const itcl=(soc.inf_tone||'').includes('bull')?'grn':(soc.inf_tone||'').includes('bear')?'red':'amber';
+    const fnum=(n)=>{n=+n||0; return n>=1e6?(n/1e6).toFixed(1)+'M':n>=1e3?(n/1e3).toFixed(1)+'K':String(n);};
+    const isR=soc.platform==='reddit';
+    const eng=(m)=>isR?`▲${fnum(m.followers)} 💬${fnum(m.comments)}`:`${fnum(m.followers)} ${L('flwrs','粉')}`;
+    const sp=el('div','panel'); sp.style.marginTop='9px';
+    let html=`<h3>${t('discussion')} <span class="sub">${soc.src_label||'Reddit'} · ${soc.count} ${S.lang==='zh'?'条':'posts'} · ${L('total engagement','总热度')} ${fnum(soc.total_engagement)}</span></h3>
+      <div class="pad">
+      <div class="narr" style="margin-bottom:8px"><b>${L('Summary','总结')}:</b> ${S.lang==='zh'?(soc.summary_zh||''):(soc.summary_en||'')}</div>
+      <div class="tagrow">
+        <span class="badge b-ok">▲ ${soc.pos}</span><span class="badge b-bad">▼ ${soc.neg}</span>
+        <span class="badge b-single">● ${soc.neu}</span>
+        <span class="badge b-warn">${L('by count','按条数')}: <span class="${tcl}">${S.lang==='zh'?soc.tone_zh:soc.tone}</span></span>
+        <span class="badge b-warn">${L('by engagement','按热度')}: <span class="${itcl}">${S.lang==='zh'?soc.inf_tone_zh:soc.inf_tone}</span></span></div>`;
+    // most-discussed (by engagement)
+    if(soc.influential && soc.influential.length){
+      html+=`<div style="margin:8px 0 4px;color:var(--amber);font-size:11px;letter-spacing:.5px;font-weight:700">★ ${L('MOST DISCUSSED (by upvotes + comments)','最热门讨论（按点赞+评论）')}</div>`;
+      html+=soc.influential.map(m=>{
+        const s=m.sentiment==='positive'?'p':m.sentiment==='negative'?'n':'u';
+        return `<div class="nitem"><span class="dot ${s}"></span><a href="${m.link||'#'}" target="_blank" rel="noopener">${(m.title||m.body||'').slice(0,160)}</a>
+          <div class="meta"><b>${m.user||''}</b> · ${eng(m)} · ${(m.created||'').slice(0,10)}</div></div>`;
+      }).join('');
+      html+=`<div style="margin:8px 0 4px;color:var(--mut);font-size:11px;letter-spacing:.5px">${L('MORE','更多')}</div>`;
+    }
+    html+=(soc.messages||[]).slice(8,20).map(m=>{
+      const s=m.sentiment==='positive'?'p':m.sentiment==='negative'?'n':'u';
+      return `<div class="nitem"><span class="dot ${s}"></span><a href="${m.link||'#'}" target="_blank" rel="noopener">${(m.title||m.body||'').slice(0,160)}</a>
+        <div class="meta">${m.user||''} · ${eng(m)} · ${(m.created||'').slice(0,10)}</div></div>`;
+    }).join('')+`</div>`;
+    sp.innerHTML=html;
+    v.appendChild(sp);
+  } else {
+    const sp=el('div','panel'); sp.style.marginTop='9px';
+    sp.innerHTML=`<h3>${t('discussion')}</h3><div class="pad mut" style="font-size:12.5px;line-height:1.6">
+      ${L('No Reddit discussion found for this ticker in the recent window (often the case for small / niche names). Press ⟳ REFRESH NEWS to retry.','近期窗口未找到该股的 Reddit 讨论（小盘/冷门股常见）。可按 ⟳ 刷新新闻 重试。')}<br>
+      <span style="font-size:11px">${L('Note: X / Twitter has no reliable keyless API, so it cannot be included without a paid key.','注：X / Twitter 没有可靠的免密钥接口，无付费 key 无法接入。')}</span></div>`;
+    v.appendChild(sp);
+  }
+
+  const all=el('div','panel'); all.style.marginTop='9px';
+  all.innerHTML=`<h3>${t('headlines')}</h3><div class="pad">`+(d.news||[]).map(n=>{
+    const s=n.sentiment==='positive'?'p':n.sentiment==='negative'?'n':'u';
+    return `<div class="nitem"><span class="dot ${s}"></span><a href="${n.link||'#'}" target="_blank" rel="noopener">${n.title||''}</a>
+      <div class="meta">${n.publisher||''} · ${(n.published||'').slice(0,10)}</div></div>`;
+  }).join('')+`</div>`;
+  v.appendChild(all);
+}
+function newsCol(title,items,s){
+  const p=el('div','panel newscol');
+  p.innerHTML=`<h3>${title} <span class="sub">${(items||[]).length}</span></h3><div class="pad">`+
+    ((items&&items.length)?items.map(n=>
+      `<div class="nitem"><span class="dot ${s}"></span><a href="${n.link||'#'}" target="_blank" rel="noopener">${n.title||''}</a>
+       <div class="meta">${n.publisher||''} · ${(n.published||'').slice(0,10)}</div></div>`).join('')
+      :'<div class="mut">—</div>')+`</div>`;
+  return p;
+}
+async function fetchNews(){ toast('Fetching news for '+S.ticker+'…'); delete S.cache['news'];
+  try{ await post(`/api/company/${S.ticker}/news/fetch`); renderView('news'); }catch(e){ toast('News fetch failed: '+e.message); } }
+
+/* ---------------------------------------------------------- DATA QUALITY */
+async function vData(v){
+  const tk=S.ticker;
+  const [prov,meta]=await Promise.all([
+    get('prov','/api/company/'+tk+'/provenance'),
+    get('meta','/api/company/'+tk+'/ingest/meta').catch(()=>({})),
+  ]);
+  const rep=(meta&&meta.report)||{};
+  v.innerHTML='';
+  // summary
+  const sp=el('div','panel');
+  sp.innerHTML=`<h3>${t('xverify')} <span class="sub">${meta.last_ingest||(S.lang==='zh'?'未同步':'never')}</span></h3>
+    <div class="pad"><div class="tagrow">
+      ${(S._sources||[]).map(p=>{const cl=p.status==='live'?'b-ok':p.status==='nokey'?'b-warn':'b-bad';
+        const lbl=p.status==='live'?'LIVE':p.status==='nokey'?'NO KEY':'DOWN';
+        return `<span class="badge ${cl}" title="${p.kind||''}">${p.name} ${lbl}</span>`;}).join('')}
+    </div><div class="metrics">
+      ${[['SOURCES USED',(rep.sources_used||[]).length],['CELLS',rep.cells||0],
+         ['VERIFIED',rep.verified||0],['CONFLICTS',rep.conflicts||0]]
+        .map(([l,d])=>`<div class="m"><div class="l">${l}</div><div class="d">${d}</div></div>`).join('')}
+    </div></div>`;
+  v.appendChild(sp);
+
+  // integrity
+  if(rep.integrity && rep.integrity.length){
+    const ip=el('div','panel'); ip.style.marginTop='8px';
+    ip.innerHTML=`<h3>${t('integ')} <span class="sub">Σ quarters vs FY</span></h3><div class="tblwrap"><table>
+      <thead><tr><th>YEAR</th><th class="lbl">METRIC</th><th>FY</th><th>Σ QTRS</th><th>DIFF</th><th>STATUS</th></tr></thead><tbody>`+
+      rep.integrity.map(c=>`<tr><td>${c.year}</td><td class="lbl">${c.metric}</td><td>${fmt(c.fy,2)}</td>
+        <td>${fmt(c.q_sum,2)}</td><td>${c.diff_pct}%</td>
+        <td><span class="badge ${c.ok?'b-ok':'b-warn'}">${c.ok?'OK':'CHECK'}</span></td></tr>`).join('')+
+      `</tbody></table></div>`;
+    v.appendChild(ip);
+  }
+
+  // provenance table
+  const pp=el('div','panel'); pp.style.marginTop='8px';
+  let html=`<h3>${t('prov')} <span class="sub">per-source values · ${prov.length} cells</span></h3><div class="tblwrap"><table>
+    <thead><tr><th>YR</th><th>PER</th><th class="lbl">METRIC</th><th>CHOSEN</th><th class="lbl">SRC</th><th>AGREE</th><th class="lbl">SOURCE VALUES</th></tr></thead><tbody>`;
+  prov.filter(p=>p.agreement!=='missing').sort((a,b)=>b.year-a.year||(''+a.period).localeCompare(b.period)).slice(0,400).forEach(p=>{
+    const bcl=p.agreement==='verified'?'b-ok':p.agreement==='conflict'?'b-bad':'b-single';
+    const sv=Object.entries(p.sources||{}).map(([s,val])=>`${s}=${fmt(val,2)}`).join('  ');
+    html+=`<tr><td>${p.year}</td><td>${p.period}</td><td class="lbl">${p.metric}</td>
+      <td>${fmt(p.chosen_value,2)}</td><td class="lbl">${p.chosen_source||''}</td>
+      <td><span class="badge ${bcl}">${(p.agreement||'').slice(0,4).toUpperCase()}</span></td>
+      <td class="lbl mut">${sv}</td></tr>`;
+  });
+  html+=`</tbody></table></div>`; pp.innerHTML=html; v.appendChild(pp);
+
+  if(!prov.length) pp.querySelector('.tblwrap').innerHTML='<div class="empty">No provenance yet. Press ⟳ REFRESH to fetch + cross-verify.</div>';
+}
+
+/* ============================================================ CHART HELPER */
+function cssVar(name){ return getComputedStyle(document.body).getPropertyValue(name).trim()||'#d97757'; }
+/* rich tooltip formatter with units. unit: '$','B','%','x','' */
+function tipFmt(unit){
+  const fmtv=(v)=>{ if(v==null||isNaN(v)) return '—';
+    if(unit==='$') return '$'+fmt(v,2);
+    if(unit==='B') return fmt(v,2)+' B';
+    if(unit==='%') return fmt(v,1)+'%';
+    if(unit==='x') return fmt(v,1)+'×';
+    if(unit==='count') return fmt(v,0);
+    return fmt(v,2); };
+  return (ps)=>{ ps=Array.isArray(ps)?ps:[ps];
+    let h=`<div style="font-size:11px;color:#999;margin-bottom:2px">${ps[0].axisValueLabel||ps[0].name||''}</div>`;
+    ps.forEach(p=>{ h+=`<div style="display:flex;gap:10px;justify-content:space-between">
+      <span>${p.marker} ${p.seriesName||''}</span><b>${fmtv(p.value)}</b></div>`; });
+    return h; };
+}
+function axisColors(){
+  return S.theme==='light'
+    ? {ax:'#7a746a', gl:'#e0dcce', tx:'#5f5a50', amber:cssVar('--amber')}
+    : {ax:'#8a8170', gl:'#332e24', tx:'#b3a995', amber:cssVar('--amber')};
+}
+function drawChart(id,opt){
+  const node=document.getElementById(id); if(!node) return;
+  let c=S.charts[id];
+  if(!c || c.getDom()!==node){ c=echarts.init(node,null,{renderer:'canvas'}); S.charts[id]=c; }
+  opt.backgroundColor='transparent';
+  c.setOption(opt,true);
+}
+window.addEventListener('resize',()=>Object.values(S.charts).forEach(c=>c&&c.resize()));
+
+/* ============================================================ ADD TICKER */
+async function addTicker(){
+  const tk=prompt(S.lang==='zh'?'添加股票代码（如 AAPL、0700.HK、600519.SS）：':'Add ticker (e.g. AAPL, 0700.HK, 600519.SS):');
+  if(!tk) return;
+  const T=tk.toUpperCase().trim();
+  try{ await post('/api/companies',{ticker:T}); await reloadRail();
+    load(T); toast((S.lang==='zh'?'已添加 ':'Added ')+T+(S.lang==='zh'?' — 按 ⟳ 刷新 获取数据':' — press ⟳ REFRESH to fetch data')); }
+  catch(e){ toast('Add failed: '+e.message); }
+}
+
+/* ============================================================ KEYS */
+function bindKeys(){
+  $('#goBtn').onclick=()=>load($('#cmd').value);
+  $('#refreshBtn').onclick=refresh;
+  $('#addBtn').onclick=addTicker;
+  $('#newCatBtn').onclick=newCategory;
+  const sb=$('#sourcesBtn'); if(sb) sb.onclick=openSourcesModal;
+  const rt=$('#railToggle'); if(rt){ if(localStorage.getItem('sw_rail')==='0') $('#rail').classList.add('collapsed');
+    rt.onclick=()=>{ const c=$('#rail').classList.toggle('collapsed'); localStorage.setItem('sw_rail',c?'0':'1');
+      setTimeout(()=>Object.values(S.charts).forEach(ch=>ch&&ch.resize()),200); }; }
+  $('#langBtn').onclick=toggleLang;
+  $('#themeBtn').onclick=()=>setTheme(S.theme==='dark'?'light':'dark');
+  $('#cmd').addEventListener('keydown',e=>{ if(e.key==='Enter') load($('#cmd').value); });
+  $('#modalClose').onclick=closeModal;
+  $('#modalWrap').onclick=(e)=>{ if(e.target===$('#modalWrap')) closeModal(); };
+  document.addEventListener('keydown',e=>{
+    if(e.key==='Escape') closeModal();
+    if(e.key==='/' && document.activeElement!==$('#cmd')){ e.preventDefault(); $('#cmd').focus(); $('#cmd').select(); }
+    const fk={F1:'overview',F2:'fundamentals',F3:'valuation',F4:'masters',F5:'news',F6:'data'}[e.key];
+    if(fk){ e.preventDefault(); switchTab(fk); }
+  });
+}
+async function openSourcesModal(){
+  openModal(`<div class="loading">${t('loading')}…</div>`);
+  let st=S._sources; try{ st=await api('/api/providers'); S._sources=st; renderSources(st); }catch(e){}
+  const tx={live:[L('Connected','已连接'),'grn'],nokey:[L('Needs key','需要密钥'),'amber'],down:[L('Unreachable','无法连接'),'red']};
+  const rows=(st||[]).map(p=>{const s=tx[p.status]||[p.status,'mut'];
+    return `<tr><td class="lbl" style="font-weight:700">${p.name}</td>
+      <td class="lbl mut" style="font-family:var(--sans)">${p.kind||''}</td>
+      <td><span class="${s[1]}">● ${s[0]}</span></td></tr>`;}).join('');
+  const liveN=(st||[]).filter(p=>p.status==='live').length;
+  openModal(`<div style="font-size:18px;font-weight:700;margin-bottom:4px">${L('Data sources','数据源')} · ${liveN}/${(st||[]).length} ${L('live','在线')}</div>
+    <div class="mut" style="margin-bottom:12px">${L('All sources are keyless. Status is checked live each time.','全部数据源无需密钥，每次实时检测连接状态。')}</div>
+    <table><thead><tr><th class="lbl">${L('Source','来源')}</th><th class="lbl">${L('Provides','提供')}</th><th class="lbl">${L('Status','状态')}</th></tr></thead><tbody>${rows}</tbody></table>`);
+}
+boot();
+</script>
+</body>
+</html>
